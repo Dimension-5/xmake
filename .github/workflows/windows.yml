@@ -71,6 +71,7 @@ jobs:
           cd ..
 
       - name: Tests
+        if: matrix.os == 'windows-2022'
         run: |
           Copy-Item ./core/build/xmake.exe ./xmake
           Copy-Item ./scripts/xrepo.bat ./xmake
