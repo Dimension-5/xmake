@@ -8,7 +8,7 @@ set_version("2.9.3", {build = "%Y%m%d"})
 set_xmakever("2.8.5")
 
 -- set all warnings as errors
-set_warnings("all", "error")
+set_warnings("none")
 
 -- set language: c99, c++11
 set_languages("c99", "cxx11")
@@ -16,10 +16,7 @@ set_languages("c99", "cxx11")
 -- add release and debug modes
 add_rules("mode.release", "mode.debug")
 if is_mode("release") then
-    set_optimize("smallest")
-    if is_plat("windows") then
-        add_ldflags("/LTCG")
-    end
+    set_optimize("aggressive")
 end
 
 -- disable some compiler errors
@@ -28,6 +25,7 @@ add_cxflags("-Wno-error=deprecated-declarations", "-fno-strict-aliasing", "-Wno-
 -- add definitions
 add_defines("_GNU_SOURCE=1", "_FILE_OFFSET_BITS=64", "_LARGEFILE_SOURCE")
 
+includes("xmake_func.lua", "src/mimalloc/xmake.lua")
 -- add vectorexts
 --[[
 if is_arch("x86", "x64", "i386", "x86_64") then
@@ -38,8 +36,7 @@ end]]
 
 -- for the windows platform (msvc)
 if is_plat("windows") then
-    set_runtimes("MT")
-    add_ldflags("-nodefaultlib:msvcrt.lib")
+    set_runtimes("MD")
     add_links("kernel32", "user32", "gdi32")
 end
 

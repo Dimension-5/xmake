@@ -1,10 +1,10 @@
 target("lua")
     set_kind("static")
-    set_warnings("all")
+    set_warnings("none")
 
     -- disable c99(/TP) for windows
     if is_plat("windows") then
-        set_languages("c89")
+        set_languages("clatest")
     end
 
     -- add header files
@@ -29,6 +29,8 @@ target("lua")
     else
         add_defines("LUA_USE_LINUX")
     end
+
+    add_deps("mimalloc")
 
     -- we just disable os.execute for ios, because os.execv do not use it
     -- @see https://github.com/xmake-io/xmake/issues/2187

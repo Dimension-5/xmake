@@ -1,6 +1,6 @@
 [submodule "core/src/tbox/tbox"]
 	path = core/src/tbox/tbox
-	url = ../../tboox/tbox.git
+	url = https://github.com/Dimension-5/tbox.git
 [submodule "core/src/luajit/luajit"]
 	path = core/src/luajit/luajit
 	url = ../../xmake-io/xmake-core-luajit.git
@@ -15,7 +15,7 @@
 	url = ../../xmake-io/xmake-core-lua-cjson.git
 [submodule "core/src/lua/lua"]
 	path = core/src/lua/lua
-	url = ../../xmake-io/xmake-core-lua.git
+	url = https://github.com/Dimension-5/xmake-core-lua.git
 [submodule "core/src/lz4/lz4"]
 	path = core/src/lz4/lz4
 	url = ../../xmake-io/xmake-core-lz4.git
