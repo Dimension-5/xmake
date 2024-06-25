@@ -1,4 +1,3 @@
-includes("build_proj.lua")
 target("mimalloc")
 _config_project({
 	project_kind = "object",
