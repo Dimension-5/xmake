@@ -200,11 +200,7 @@ end
 
 -- load project targets
 function sandbox_core_project.load_targets(opt)
-
-    -- load package rules for targets
     sandbox_core_project._load_package_rules_for_targets()
-
-    -- config targets
     sandbox_core_project._config_targets(opt)
 end
 
