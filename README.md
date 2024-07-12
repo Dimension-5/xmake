@@ -180,7 +180,7 @@ $ xmake f --menu
 
 ## Supported platforms
 
-* Windows (x86, x64, arm64)
+* Windows (x86, x64, arm, arm64, arm64ec)
 * macOS (i386, x86_64, arm64)
 * Linux (i386, x86_64, arm, arm64, riscv, mips, 390x, sh4 ...)
 * *BSD (i386, x86_64)
@@ -230,6 +230,7 @@ tinycc        Tiny C Compiler
 emcc          A toolchain for compiling to asm.js and WebAssembly
 icc           Intel C/C++ Compiler
 ifort         Intel Fortran Compiler
+ifx           Intel LLVM Fortran Compiler
 muslcc        The musl-based cross-compilation toolchain
 fpc           Free Pascal Programming Language Compiler
 wasi          WASI-enabled WebAssembly C/C++ toolchain
