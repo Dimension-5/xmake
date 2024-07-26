@@ -572,6 +572,11 @@ function _instance:is_headeronly()
     return self:is_library() and self:extraconf("kind", "library", "headeronly")
 end
 
+-- is module only?
+function _instance:is_moduleonly()
+    return self:is_library() and self:extraconf("kind", "library", "moduleonly")
+end
+
 -- is top level? user top requires in xmake.lua
 function _instance:is_toplevel()
     local requireinfo = self:requireinfo()
@@ -1032,7 +1037,10 @@ function _instance:_rawenvs()
         envs = {}
 
         -- add bin PATH
-        if self:is_binary() or self:is_plat("windows", "mingw") then -- bin/*.dll for windows
+        local bindirs = self:get("bindirs")
+        if bindirs then
+            envs.PATH = table.wrap(bindirs)
+        elseif self:is_binary() or self:is_plat("windows", "mingw") then -- bin/*.dll for windows
             envs.PATH = {"bin"}
         end
 
@@ -1863,6 +1871,7 @@ function _instance:find_tool(name, opt)
     self._find_tool = self._find_tool or sandbox_module.import("lib.detect.find_tool", {anonymous = true})
     return self._find_tool(name, {cachekey = opt.cachekey or "fetch_package_system",
                                   installdir = self:installdir({readonly = true}),
+                                  bindirs = self:get("bindirs"),
                                   version = true, -- we alway check version
                                   require_version = opt.require_version,
                                   norun = opt.norun,
@@ -1888,6 +1897,7 @@ function _instance:find_package(name, opt)
     return self._find_package(name, {
                               force = opt.force,
                               installdir = self:installdir({readonly = true}),
+                              bindirs = self:get("bindirs"),
                               version = true, -- we alway check version
                               require_version = opt.require_version,
                               mode = self:mode(),
@@ -2399,7 +2409,7 @@ function _instance:_generate_build_configs(configs, opt)
     end
 
     -- check links for library
-    if self:is_library() and not self:is_headeronly() then
+    if self:is_library() and not self:is_headeronly() and not self:is_moduleonly() then
         local links = table.wrap(configs.links)
         local ldflags = table.wrap(configs.ldflags)
         local frameworks = table.wrap(configs.frameworks)
@@ -2714,6 +2724,7 @@ function package.apis()
         ,   "package.set_sourcedir"
         ,   "package.set_cachedir"
         ,   "package.set_installdir"
+        ,   "package.add_bindirs"
             -- package.add_xxx
         ,   "package.add_deps"
         ,   "package.add_urls"

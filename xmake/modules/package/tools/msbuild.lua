@@ -20,6 +20,7 @@
 
 -- imports
 import("core.base.option")
+import("core.project.project")
 import("core.tool.toolchain")
 import("lib.detect.find_tool")
 import("private.utils.upgrade_vsproj")
@@ -63,6 +64,13 @@ function _get_configs(package, configs, opt)
     end
     if not configs_str:find("p:Platform=", 1, true) then
         table.insert(configs, "-p:Platform=" .. _get_vsarch(package))
+    end
+    if project.policy("package.msbuild.multi_tool_task") or package:policy("package.msbuild.multi_tool_task") then
+        table.insert(configs, "/p:UseMultiToolTask=true")
+        table.insert(configs, "/p:EnforceProcessCountAcrossBuilds=true")
+        if jobs then
+            table.insert(configs, format("/p:MultiProcMaxCount=%d", jobs))
+        end
     end
     return configs
 end

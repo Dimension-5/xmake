@@ -68,6 +68,8 @@ function policy.policies()
             ["build.sanitizer.leak"]              = {description = "Enable leak sanitizer for c/c++ building.", type = "boolean"},
             -- Enable undefined sanitizer for c/c++ building.
             ["build.sanitizer.undefined"]         = {description = "Enable undefined sanitizer for c/c++ building.", type = "boolean"},
+            -- Enable build rpath
+            ["build.rpath"]                       = {description = "Enable build rpath.", default = true, type = "boolean"},
             -- Enable C++ modules for C++ building, even if no .mpp is involved in the compilation
             ["build.c++.modules"]                 = {description = "Enable C++ modules for C++ building.", type = "boolean"},
             -- Enable std module
@@ -96,6 +98,8 @@ function policy.policies()
             ["windows.manifest.uac.ui"]           = {description = "Enable windows manifest UAC.", type = "boolean"},
             -- Automatically build before running
             ["run.autobuild"]                     = {description = "Automatically build before running.", type = "boolean"},
+            -- Enable install rpath
+            ["install.rpath"]                     = {description = "Enable install rpath.", default = true, type = "boolean"},
             -- Preprocessor configuration for ccache/distcc, we can disable linemarkers to speed up preprocess
             ["preprocessor.linemarkers"]          = {description = "Enable linemarkers for preprocessor.", default = true, type = "boolean"},
             -- Preprocessor configuration for ccache/distcc, we can disable it to avoid cache object file with __DATE__, __TIME__
@@ -133,6 +137,8 @@ function policy.policies()
             ["package.xmake.pass_depconfs"]       = {description = "Automatically passes dependency configuration for inner xmake package", default = true, type = "boolean"},
             -- It will force cmake package use ninja for build
             ["package.cmake_generator.ninja"]     = {description = "Set cmake package use ninja for build", default = false, type = "boolean"},
+            -- Enable msbuild MultiToolTask
+            ["package.msbuild.multi_tool_task"]   = {description = "Enable msbuild MultiToolTask.", default = false, type = "boolean"},
             -- Stop to test on the first failure
             ["test.stop_on_first_failure"]        = {description = "Stop to test on the first failure", default = false, type = "boolean"},
             -- Return zero as exit code on failure
