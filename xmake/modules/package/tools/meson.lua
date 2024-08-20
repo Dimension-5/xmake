@@ -50,6 +50,20 @@ end
 
 -- get pkg-config, we need force to find it, because package install environments will be changed
 function _get_pkgconfig(package)
+    -- meson need fullpath pkgconfig
+    -- @see https://github.com/xmake-io/xmake/issues/5474
+    local dep = package:dep("pkgconf") or package:dep("pkg-config")
+    if dep then
+        local suffix = dep:is_plat("windows", "mingw") and ".exe" or ""
+        local pkgconf = path.join(dep:installdir("bin"), "pkgconf" .. suffix)
+        if os.isfile(pkgconf) then
+            return pkgconf
+        end
+        local pkgconfig = path.join(dep:installdir("bin"), "pkg-config" .. suffix)
+        if os.isfile(pkgconfig) then
+            return pkgconfig
+        end
+    end
     if package:is_plat("windows") then
         local pkgconf = find_tool("pkgconf", {force = true})
         if pkgconf then
@@ -390,22 +404,37 @@ end
 -- fix libname on windows
 function _fix_libname_on_windows(package)
     for _, lib in ipairs(os.files(path.join(package:installdir("lib"), "lib*.a"))) do
-        os.mv(lib, lib:gsub("(.+)\\lib(.-)%.a", "%1\\%2.lib"))
+        os.mv(lib, (lib:gsub("(.+)\\lib(.-)%.a", "%1\\%2.lib")))
     end
 end
 
 -- get cflags from package deps
 function _get_cflags_from_packagedeps(package, opt)
-    local result = {}
+    local values
     for _, depname in ipairs(opt.packagedeps) do
         local dep = type(depname) ~= "string" and depname or package:dep(depname)
         if dep then
             local fetchinfo = dep:fetch()
             if fetchinfo then
-                table.join2(result, _map_compflags(package, "cxx", "define", fetchinfo.defines))
-                table.join2(result, _map_compflags(package, "cxx", "includedir", fetchinfo.includedirs))
-                table.join2(result, _map_compflags(package, "cxx", "sysincludedir", fetchinfo.sysincludedirs))
+                if values then
+                    values = values .. fetchinfo
+                else
+                    values = fetchinfo
+                end
             end
+        end
+    end
+    -- @see https://github.com/xmake-io/xmake-repo/pull/4973#issuecomment-2295890196
+    local result = {}
+    if values then
+        if values.defines then
+            table.join2(result, _map_compflags(package, "cxx", "define", values.defines))
+        end
+        if values.includedirs then
+            table.join2(result, _map_compflags(package, "cxx", "includedir", values.includedirs))
+        end
+        if values.sysincludedirs then
+            table.join2(result, _map_compflags(package, "cxx", "sysincludedir", values.sysincludedirs))
         end
     end
     return _translate_flags(package, result)
@@ -413,16 +442,33 @@ end
 
 -- get ldflags from package deps
 function _get_ldflags_from_packagedeps(package, opt)
-    local result = {}
+    local values
     for _, depname in ipairs(opt.packagedeps) do
         local dep = type(depname) ~= "string" and depname or package:dep(depname)
         if dep then
             local fetchinfo = dep:fetch()
             if fetchinfo then
-                table.join2(result, _map_linkflags(package, "binary", {"cxx"}, "linkdir", fetchinfo.linkdirs))
-                table.join2(result, _map_linkflags(package, "binary", {"cxx"}, "link", fetchinfo.links))
-                table.join2(result, _map_linkflags(package, "binary", {"cxx"}, "syslink", fetchinfo.syslinks))
+                if values then
+                    values = values .. fetchinfo
+                else
+                    values = fetchinfo
+                end
             end
+        end
+    end
+    local result = {}
+    if values then
+        if values.linkdirs then
+            table.join2(result, _map_linkflags(package, "binary", {"cxx"}, "linkdir", values.linkdirs))
+        end
+        if values.links then
+            table.join2(result, _map_linkflags(package, "binary", {"cxx"}, "link", values.links))
+        end
+        if values.syslinks then
+            table.join2(result, _map_linkflags(package, "binary", {"cxx"}, "syslink", values.syslinks))
+        end
+        if values.frameworks then
+            table.join2(result, _map_linkflags(package, "binary", {"cxx"}, "framework", values.frameworks))
         end
     end
     return _translate_flags(package, result)
