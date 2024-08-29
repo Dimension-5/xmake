@@ -783,9 +783,9 @@ function _instance:cachedir()
             --
             local name = self:displayname():lower():gsub("::", "_"):gsub("#", "_")
             local version_str = self:version_str()
-            if self:is_thirdparty() then
-                -- strip `>= <=`
-                version_str = version_str:gsub("[>=<]", "")
+            -- strip invalid characters on windows, e.g. `>= <=`
+            if os.is_host("windows") then
+                version_str = version_str:gsub("[>=<|%*]", "")
             end
             if self:is_local() then
                 cachedir = path.join(config.buildir({absolute = true}), ".packages", name:sub(1, 1):lower(), name, version_str, "cache")
@@ -812,9 +812,9 @@ function _instance:installdir(...)
             end
             local version_str = self:version_str()
             if version_str then
-                if self:is_thirdparty() then
-                    -- strip `>= <=`
-                    version_str = version_str:gsub("[>=<]", "")
+                -- strip invalid characters on windows, e.g. `>= <=`
+                if os.is_host("windows") then
+                    version_str = version_str:gsub("[>=<|%*]", "")
                 end
                 installdir = path.join(installdir, version_str)
             end
@@ -1026,8 +1026,12 @@ function _instance:_load()
         if on_load then
             on_load(self)
         end
-        self._LOADED = true
     end
+end
+
+-- mark as loaded package
+function _instance:_mark_as_loaded()
+    self._LOADED = true
 end
 
 -- get the raw environments
