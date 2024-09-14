@@ -401,10 +401,10 @@ function _instance:fallback_build()
                 self:urls_set(artifacts_backup.urls)
             end
             if artifacts_backup.versions then
-                self:set("versions", artifacts_backup.versions)
+                self._INFO:apival_set("versions", artifacts_backup.versions)
             end
             if artifacts_backup.install then
-                self:set("install", artifacts_backup.install)
+                self._INFO:apival_set("install", artifacts_backup.install)
             end
             self._MANIFEST = nil
         end
@@ -1093,7 +1093,7 @@ function _instance:envs()
                 if path.is_absolute(value) then
                     table.insert(newvalues, value)
                 else
-                    table.insert(newvalues, path.normalize(path.join(self:installdir(), value)))
+                    table.insert(newvalues, path.normalize(path.join(self:installdir({readonly = true}), value)))
                 end
             end
             values = newvalues
@@ -1846,6 +1846,8 @@ function _instance:_fetch_library(opt)
                     components_base.sysincludedirs = nil
                 end
             end
+            local package_utils = sandbox_module.import("private.utils.package", {anonymous = true})
+            package_utils.fetchinfo_set_concat(fetchinfo)
         end
         if fetchinfo and option.get("verbose") then
             local reponame = self:repo() and self:repo():name() or ""

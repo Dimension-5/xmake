@@ -587,20 +587,19 @@ function _finish_requireinfo(requireinfo, package)
         package:arch_set(requireinfo.arch)
     end
     requireinfo.configs = requireinfo.configs or {}
-    if not package:is_headeronly() then
-        if package:is_plat("windows") then
-            -- @see https://github.com/xmake-io/xmake/issues/4477#issuecomment-1913249489
-            local runtimes = requireinfo.configs.runtimes
-            if runtimes then
-                runtimes = runtimes:split(",")
-            else
-                runtimes = {}
-            end
-            if not table.contains(runtimes, "MT", "MD", "MTd", "MDd") then
-                table.insert(runtimes, "MT")
-            end
-            requireinfo.configs.runtimes = table.concat(runtimes, ",")
+    if package:is_plat("windows") then
+        -- @see https://github.com/xmake-io/xmake/issues/4477#issuecomment-1913249489
+        -- @note its buildhash will be ignored for headeronly
+        local runtimes = requireinfo.configs.runtimes
+        if runtimes then
+            runtimes = runtimes:split(",")
+        else
+            runtimes = {}
         end
+        if not table.contains(runtimes, "MT", "MD", "MTd", "MDd") then
+            table.insert(runtimes, "MT")
+        end
+        requireinfo.configs.runtimes = table.concat(runtimes, ",")
     end
     -- we need to ensure readonly configs
     for _, name in ipairs(table.keys(requireinfo.configs)) do
@@ -1011,6 +1010,13 @@ function _load_package(packagename, requireinfo, opt)
 
     -- check package configurations
     _check_package_configurations(package)
+
+    -- we need to check package toolchains before on_load and select runtimes,
+    -- because we will call compiler-specific apis in on_load/on_fetch/find_package ..
+    --
+    -- @see https://github.com/xmake-io/xmake/pull/5466
+    -- https://github.com/xmake-io/xmake/issues/4596#issuecomment-2014528801
+    _check_package_toolchains(package)
 
     -- we need to select package runtimes before computing buildhash
     -- @see https://github.com/xmake-io/xmake/pull/4630#issuecomment-1910216561

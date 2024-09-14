@@ -136,7 +136,8 @@ function _instance:add(name, ...)
 end
 
 -- get the toolchain configuration
-function _instance:get(name)
+function _instance:get(name, opt)
+    opt = opt or {}
 
     -- attempt to get the static configure value
     local value = self:info():get(name)
@@ -145,10 +146,10 @@ function _instance:get(name)
     end
 
     -- lazy loading toolchain
-    self:_load()
-
-    -- get other platform info
-    return self:info():get(name)
+    if opt.load ~= false then
+        self:_load()
+        return self:info():get(name)
+    end
 end
 
 -- get toolchain kind
@@ -360,6 +361,9 @@ end
 
 -- do load, @note we need to load it repeatly for each architectures
 function _instance:_load()
+    if not self:_is_checked() then
+        utils.warning("we cannot load toolchain(%s), because it has been not checked yet!", self:name(), self:plat(), self:arch())
+    end
     local info = self:info()
     if not info:get("__loaded") and not info:get("__loading") then
         local on_load = self:_on_load()
