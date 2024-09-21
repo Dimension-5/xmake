@@ -209,9 +209,9 @@ end
 
 -- get the program and name of the given tool kind
 function _instance:tool(toolkind)
-    if not self:_is_checked() then
-        utils.warning("we cannot get tool(%s) in toolchain(%s) with %s/%s, because it has been not checked yet!", toolkind, self:name(), self:plat(), self:arch())
-    end
+    -- if not self:_is_checked() then
+    --     utils.warning("we cannot get tool(%s) in toolchain(%s) with %s/%s, because it has been not checked yet!", toolkind, self:name(), self:plat(), self:arch())
+    -- end
     -- ensure to do load for initializing toolset first
     -- @note we cannot call self:check() here, because it can only be called on config
     self:_load()
@@ -361,9 +361,9 @@ end
 
 -- do load, @note we need to load it repeatly for each architectures
 function _instance:_load()
-    if not self:_is_checked() then
-        utils.warning("we cannot load toolchain(%s), because it has been not checked yet!", self:name(), self:plat(), self:arch())
-    end
+    -- if not self:_is_checked() then
+    --     utils.warning("we cannot load toolchain(%s), because it has been not checked yet!", self:name(), self:plat(), self:arch())
+    -- end
     local info = self:info()
     if not info:get("__loaded") and not info:get("__loading") then
         local on_load = self:_on_load()
@@ -813,9 +813,9 @@ function toolchain.toolconfig(toolchains, name, opt)
     local toolconfig = cache:get2(cachekey, name)
     if toolconfig == nil then
         for _, toolchain_inst in ipairs(toolchains) do
-            if not toolchain_inst:_is_checked() then
-                utils.warning("we cannot get toolconfig(%s) in toolchain(%s) with %s/%s, because it has been not checked yet!", name, toolchain_inst:name(), toolchain_inst:plat(), toolchain_inst:arch())
-            end
+            -- if not toolchain_inst:_is_checked() then
+            --     utils.warning("we cannot get toolconfig(%s) in toolchain(%s) with %s/%s, because it has been not checked yet!", name, toolchain_inst:name(), toolchain_inst:plat(), toolchain_inst:arch())
+            -- end
             local values = toolchain_inst:get(name)
             if values then
                 toolconfig = toolconfig or {}
