@@ -756,6 +756,12 @@ function _preprocess(program, argv, opt)
         table.insert(flags, "-fdirectives-only")
     end
 
+    -- suppress -Wgnu-line-marker warnings
+    -- @see https://github.com/xmake-io/xmake/issues/5737
+    if is_gcc or is_clang then
+        table.insert(flags, "-Wno-gnu-line-marker")
+    end
+
     -- do preprocess
     local cppinfo = try {function ()
         if is_host("windows") then
@@ -866,12 +872,9 @@ end
 
 -- compile the source file
 function compile(self, sourcefile, objectfile, dependinfo, flags, opt)
-
-    -- ensure the object directory
+    opt = opt or {}
     os.mkdir(path.directory(objectfile))
 
-    -- compile it
-    opt = opt or {}
     local depfile = dependinfo and os.tmpfile() or nil
     try
     {

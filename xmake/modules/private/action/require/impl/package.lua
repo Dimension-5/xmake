@@ -85,6 +85,11 @@ end
 --
 -- {build = true}: always build packages, we do not use the precompiled artifacts
 --
+-- simply configs as string:
+--   add_requires("boost[iostreams,system,thread,key=value] >=1.78.0")
+--   add_requires("boost[iostreams,thread=n] >=1.78.0")
+--   add_requires("libplist[shared,debug,codecs=[foo,bar,zoo]]")
+--
 function _parse_require(require_str)
 
     -- split package and version info
@@ -142,6 +147,39 @@ function _load_require(require_str, requires_extra, parentinfo)
     local require_extra = {}
     if requires_extra then
         require_extra = requires_extra[require_str] or {}
+    end
+
+
+    -- parse configs from package name
+    -- @see https://github.com/xmake-io/xmake/issues/5727#issuecomment-2421040107
+    --
+    -- e.g.
+    --   add_requires("boost[iostreams,system,thread,key=value] >=1.78.0")
+    --   add_requires("libplist[shared,debug,codecs=[foo,bar,zoo]]")
+    --
+    local packagename_raw, configs_str = packagename:match("(.-)%[(.*)%]")
+    if packagename_raw and configs_str then
+        configs_str = configs_str:gsub("%[(.*)%]", function (w)
+            return w:replace(",", ":")
+        end)
+        packagename = packagename_raw
+        local splitinfo = configs_str:split(",", {plain = true})
+        for _, v in ipairs(splitinfo) do
+            local parts = v:split("=", {plain = true})
+            local k = parts[1]
+            v = parts[2]
+            require_extra.configs = require_extra.configs or {}
+            local configs = require_extra.configs
+            if v then
+                if v:find(":", 1 ,true) then
+                    configs[k] = v:split(":", {plain = true})
+                else
+                    configs[k] = option.boolean(v)
+                end
+            else
+                configs[k] = true
+            end
+        end
     end
 
     -- get required building configurations

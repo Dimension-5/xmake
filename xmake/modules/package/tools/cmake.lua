@@ -1007,7 +1007,7 @@ end
 function _build_for_msvc(package, configs, opt)
     local allbuild = os.isfile("ALL_BUILD.vcxproj") and "ALL_BUILD.vcxproj" or "ALL_BUILD.vcproj"
     assert(os.isfile(allbuild), "ALL_BUILD project not found!")
-    msbuild.build(package, {allbuild, "-t:Rebuild"})
+    msbuild.build(package, {allbuild, "-t:Rebuild"}, opt)
 end
 
 -- do build for make
@@ -1080,10 +1080,10 @@ end
 function _install_for_msvc(package, configs, opt)
     local allbuild = os.isfile("ALL_BUILD.vcxproj") and "ALL_BUILD.vcxproj" or "ALL_BUILD.vcproj"
     assert(os.isfile(allbuild), "ALL_BUILD project not found!")
-    msbuild.build(package, {allbuild, "-t:Rebuild", "/nr:false"})
+    msbuild.build(package, {allbuild, "-t:Rebuild", "/nr:false"}, opt)
     local projfile = os.isfile("INSTALL.vcxproj") and "INSTALL.vcxproj" or "INSTALL.vcproj"
     if os.isfile(projfile) then
-        msbuild.build(package, {projfile})
+        msbuild.build(package, {projfile}, opt)
         os.trycp("install/bin", package:installdir())
         os.trycp("install/lib", package:installdir()) -- perhaps only headers library
         os.trycp("install/share", package:installdir())
@@ -1158,7 +1158,11 @@ function _get_cmake_generator(package, opt)
     opt = opt or {}
     local cmake_generator = opt.cmake_generator
     if not cmake_generator then
-        if project.policy("package.cmake_generator.ninja") or package:policy("package.cmake_generator.ninja") then
+        local use_ninja = package:policy("package.cmake_generator.ninja")
+        if use_ninja == nil then
+            use_ninja = project.policy("package.cmake_generator.ninja")
+        end
+        if use_ninja then
             cmake_generator = "Ninja"
         end
         if not cmake_generator then
