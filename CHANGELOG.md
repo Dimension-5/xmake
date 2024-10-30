@@ -2,6 +2,8 @@
 
 ## master (unreleased)
 
+## v2.9.6
+
 ### New features
 
 * [#5527](https://github.com/xmake-io/xmake/issues/5527): Add `set_policy("compatibility.version", "3.0")` to preview v3.0 features.
@@ -14,6 +16,7 @@
 * [#5688](https://github.com/xmake-io/xmake/pull/5688): Improve hashset module
 * [#5711](https://github.com/xmake-io/xmake/issues/5711): Support to parse include deps for sdcc
 * [#5727](https://github.com/xmake-io/xmake/issues/5727): Improve configs for add_requires
+* [#5762](https://github.com/xmake-io/xmake/pull/5762): Improve bin2c speed
 
 ### Bugs fixed
 
@@ -1894,6 +1897,8 @@
 
 ## master (开发中)
 
+## v2.9.6
+
 ### 新特性
 
 * [#5527](https://github.com/xmake-io/xmake/issues/5527): 添加 `set_policy("compatibility.version", "3.0")` 提前预览体验 3.0 特性
@@ -1906,6 +1911,7 @@
 * [#5688](https://github.com/xmake-io/xmake/pull/5688): 改进 hashset
 * [#5711](https://github.com/xmake-io/xmake/issues/5711): 为 sdcc 支持解析 include 依赖
 * [#5727](https://github.com/xmake-io/xmake/issues/5727): 为 add_requires 改进 configs 配置
+* [#5762](https://github.com/xmake-io/xmake/pull/5762): 改进 bin2c 速度
 
 ### Bugs 修复
 
