@@ -15,10 +15,13 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki
--- @file        xmake.lua
+-- @file        configurations.lua
 --
 
--- define rule: utils.inherit.links
-rule("utils.inherit.links")
-    after_config("inherit_links")
+-- get configurations
+function main()
+    return {
+        msystem = {description = "Install pacman packages from the given msystem on msys2.", values = {"msys", "ucrt", "clang", "mingw"}}
+    }
+end
 

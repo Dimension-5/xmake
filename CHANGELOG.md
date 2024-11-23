@@ -2,6 +2,15 @@
 
 ## master (unreleased)
 
+### New features
+
+* [#5813](https://github.com/xmake-io/xmake/pull/5813): Add `before_config` and `after_config` for rule
+* [#5848](https://github.com/xmake-io/xmake/issues/5848): Support custom MSVC build tools, e.g. PortableBuildTools and msvc-wine
+
+### Changes
+
+* [#5817](https://github.com/xmake-io/xmake/pull/5817): Improve default pic for packages
+
 ## v2.9.6
 
 ### New features
@@ -1896,6 +1905,15 @@
 # 更新日志
 
 ## master (开发中)
+
+### 新特性
+
+* [#5813](https://github.com/xmake-io/xmake/pull/5813): 为 rule 添加 `before_config` 和 `after_config`
+* [#5848](https://github.com/xmake-io/xmake/issues/5848): 支持自定义 MSVC 构建工具, PortableBuildTools 和 msvc-wine
+
+### 改进
+
+* [#5817](https://github.com/xmake-io/xmake/pull/5817): 改进安装包的默认 pic 配置
 
 ## v2.9.6
 

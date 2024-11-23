@@ -15,10 +15,34 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki
--- @file        xmake.lua
+-- @file        find_wine.lua
 --
 
--- define rule: utils.inherit.links
-rule("utils.inherit.links")
-    after_config("inherit_links")
+-- imports
+import("lib.detect.find_program")
+import("lib.detect.find_programver")
 
+-- find wine
+--
+-- @param opt   the argument options, e.g. {version = true}
+--
+-- @return      program, version
+--
+-- @code
+--
+-- local wine = find_wine()
+-- local wine, version = find_wine({version = true})
+--
+-- @endcode
+--
+function main(opt)
+    opt = opt or {}
+    local program = find_program(opt.program or "wine", opt)
+
+    local version = nil
+    if program and opt and opt.version then
+        opt.parse = opt.parse or "wine%-(%d+%.%d+%.%d+)"
+        version = find_programver(program, opt)
+    end
+    return program, version
+end
