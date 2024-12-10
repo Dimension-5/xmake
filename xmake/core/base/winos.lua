@@ -168,7 +168,7 @@ function winos.cmdargv(argv, opt)
     if argn > limit then
         opt = opt or {}
         local argsfile = os.tmpfile(opt.tmpkey or os.args(argv)) .. ".args.txt"
-        local f = io.open(argsfile, 'w', {encoding = "ansi"})
+        local f = io.open(argsfile, 'w', {encoding = os.is_host("windows") and "ansi"})
         if f then
             -- we need to split args file to solve `fatal error LNK1170: line in command file contains 131071 or more characters`
             -- @see https://github.com/xmake-io/xmake/issues/812
@@ -188,7 +188,11 @@ function winos.cmdargv(argv, opt)
                 -- -Dxxx
                 -- foo.obj
                 --
-                if idx + 1 <= #argv and arg:find("^[-/]") and not arg1:find("^[-/]") then
+
+                -- if host is not Windows, paths may start with '/', which conflicts with '/<argname>'
+                -- note that checking if the next argument ends with '.json' will only work for /sourceDependencies
+                -- other arguments will remain broken, perhaps we should discuss a better solution
+                if idx + 1 <= #argv and arg:find("^[-/]") and (os.is_host("windows") and (not arg1:find("^[-/]")) or (arg1:endswith(".json"))) then
                     f:write(os.args(arg, {escape = opt.escape}) .. " ")
                     f:write(os.args(arg1, {escape = opt.escape}) .. "\n")
                     idx = idx + 2

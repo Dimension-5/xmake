@@ -680,4 +680,7 @@ with:
 * [uael](https://github.com/uael): 提供语义版本跨平台c库 [sv](https://github.com/uael/sv)。
 * [OpportunityLiu](https://github.com/OpportunityLiu): 改进cuda构建, tests框架和ci。
 * [xq144](https://github.com/xq114): 改进 `xrepo env shell`，并贡献大量包到 [xmake-repo](https://github.com/xmake-io/xmake-repo) 仓库。
+* [star-hengxing](https://github.com/star-hengxing): 贡献大量包到 [xmake-repo](https://github.com/xmake-io/xmake-repo) 仓库。
+* [SirLynix](https://github.com/SirLynix): 贡献了许多的包，并且让更多的人知道和了解 xmake。
+* [Arthapz](https://github.com/Arthapz): 贡献新的 C++ Modules 实现。
 

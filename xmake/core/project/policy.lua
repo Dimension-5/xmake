@@ -136,13 +136,24 @@ function policy.policies()
             -- if true, then any updates to library dependencies, such as buildhash changes due to version changes,
             -- will force the installed packages to be recompiled and installed. @see https://github.com/xmake-io/xmake/issues/2719
             ["package.librarydeps.strict_compatibility"] = {description = "Set strict compatibility for package and it's all library dependencies.", type = "boolean"},
+            -- Resolve package dependencies conflict automatically
+            -- @see https://github.com/xmake-io/xmake/issues/5745
+            ["package.resolve_depconflict"]       = {description = "Automatically resolve package dependencies conflict.", default = true, type = "boolean"},
+            -- Synchronize add_requires configuration in toplevel to all package dependencies for this package
+            -- @see https://github.com/xmake-io/xmake/issues/5745
+            ["package.sync_requires_to_deps"]     = {description = "Synchronize requires configuration to all package dependencies.", default = false, type = "boolean"},
             -- Automatically passes dependency configuration for inner xmake package
-            -- https://github.com/xmake-io/xmake/issues/3952
+            -- @see https://github.com/xmake-io/xmake/issues/3952
             ["package.xmake.pass_depconfs"]       = {description = "Automatically passes dependency configuration for inner xmake package", default = true, type = "boolean"},
             -- It will force cmake package use ninja for build
             ["package.cmake_generator.ninja"]     = {description = "Set cmake package use ninja for build", type = "boolean"},
             -- Enable msbuild MultiToolTask
             ["package.msbuild.multi_tool_task"]   = {description = "Enable msbuild MultiToolTask.", default = false, type = "boolean"},
+            -- Merge all static libraries after installing package
+            -- @see https://github.com/xmake-io/xmake/issues/5894
+            ["package.merge_staticlibs"]          = {description = "Merge all static libraries after installing package", type = "boolean"},
+            -- C/C++ build cache
+            ["package.build.ccache"]              = {description = "Enable C/C++ package build cache.", default = false, type = "boolean"},
             -- Stop to test on the first failure
             ["test.stop_on_first_failure"]        = {description = "Stop to test on the first failure", default = false, type = "boolean"},
             -- Return zero as exit code on failure

@@ -23,8 +23,11 @@ import("core.base.option")
 import("core.base.tty")
 import("core.package.package", {alias = "core_package"})
 import("core.project.target")
+import("core.project.project")
 import("core.platform.platform")
 import("lib.detect.find_file")
+import("utils.archive.merge_staticlib")
+import("private.tools.ccache")
 import("private.action.require.impl.actions.test")
 import("private.action.require.impl.actions.patch_sources")
 import("private.action.require.impl.actions.download_resources")
@@ -223,6 +226,42 @@ function _fix_paths_for_precompiled_package(package)
     end
 end
 
+-- merge static libraries
+-- @see https://github.com/xmake-io/xmake/issues/5894
+function _merge_staticlibs(package)
+    local merge_staticlibs = project.policy("package.merge_staticlibs")
+    if merge_staticlibs == nil then
+        merge_staticlibs = package:policy("package.merge_staticlibs")
+    end
+    if merge_staticlibs and package:is_library()
+        and not package:config("shared") and not package:is_headeronly() and not package:is_moduleonly() then
+        local installdir = package:installdir()
+        local linkdirs = table.wrap(package:get("linkdirs") or "lib")
+        local libfiles = {}
+        for _, linkdir in ipairs(linkdirs) do
+            for _, libfile in ipairs(os.files(path.join(installdir, linkdir, "*"))) do
+                if libfile:endswith(".lib") or libfile:endswith(".a") then
+                    table.insert(libfiles, libfile)
+                end
+            end
+        end
+        if #libfiles > 0 then
+            local linkdir = linkdirs[1]
+            local linkname = package:name()
+            local opt = {plat = package:plat(), arch = package:arch()}
+            local libfile_new = path.join(installdir, linkdir, target.filename(linkname, "static", opt))
+
+            merge_staticlib(package, libfile_new, libfiles)
+            package:set("links", linkname)
+            for _, libfile in ipairs(libfiles) do
+                if libfile ~= libfile_new then
+                    os.rm(libfile)
+                end
+            end
+        end
+    end
+end
+
 -- get failed install directory
 function _get_installdir_failed(package)
     return path.join(package:cachedir(), "installdir.failed")
@@ -343,6 +382,24 @@ function _enter_package_testenvs(package)
     package:envs_enter()
 end
 
+function _enable_ccache(package)
+    if package:is_local() then
+        return
+    end
+
+    if not project.policy("package.build.ccache") then
+        return
+    end
+
+    local ccache = ccache.get()
+    if ccache then
+        local name = path.basename(ccache.program)
+        package:data_set("ccache", name)
+        local ccache_dir = path.join(path.directory(package:cachedir()), name)
+        os.setenv(name:upper() .. "_DIR", ccache_dir)
+    end
+end
+
 
 function main(package)
 
@@ -387,6 +444,9 @@ function main(package)
                     -- enter the environments of all package dependencies
                     _enter_package_installenvs(package)
 
+                    -- set package ccache dir
+                    _enable_ccache(package)
+
                     -- do install
                     if script ~= nil then
                         filter.call(script, package, {oldenvs = oldenvs})
@@ -397,6 +457,9 @@ function main(package)
                     if rulesdir and os.isdir(rulesdir) then
                         os.cp(rulesdir, package:installdir())
                     end
+
+                    -- merge static libraries
+                    _merge_staticlibs(package)
 
                     -- leave the environments of all package dependencies
                     os.setenvs(oldenvs)
@@ -479,17 +542,21 @@ function main(package)
                     -- failed
                     if not package:requireinfo().optional then
                         if os.isfile(errorfile) then
-                            if errors then
-                                print("")
-                                for idx, line in ipairs(errors:split("\n")) do
-                                    print(line)
-                                    if idx > 16 then
-                                        break
+                            if errors and option.get("diagnosis") then
+                                print(tostring(errors))
+                            else
+                                if errors then
+                                    print("")
+                                    for idx, line in ipairs(errors:split("\n")) do
+                                        print(line)
+                                        if idx > 16 then
+                                            break
+                                        end
                                     end
                                 end
+                                cprint("if you want to get more verbose errors, please see:")
+                                cprint("  -> ${bright}%s", errorfile)
                             end
-                            cprint("if you want to get more verbose errors, please see:")
-                            cprint("  -> ${bright}%s", errorfile)
                         end
                         raise("install failed!")
                     end
