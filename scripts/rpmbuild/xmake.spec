@@ -1,9 +1,10 @@
 %global     debug_package %{nil}
 %define     use_luajit 0
+%undefine   __brp_mangle_shebangs
 
 Name:       xmake
 Version:    2.9.7
-Release:    1%{?dist}
+Release:    5%{?dist}
 Summary:    A cross-platform build utility based on Lua
 
 # Application and 3rd-party modules licensing:
@@ -16,7 +17,6 @@ License:    Apache-2.0 AND LicenseRef-Fedora-Public-Domain AND BSD
 URL:        https://xmake.io
 Source0:    https://github.com/xmake-io/xmake/releases/download/v%{version}/%{name}-v%{version}.tar.gz
 Patch0:     0001-use-static-libsv-and-tbox.patch
-Patch1:     0002-pkgconfig-unversioned-lua.patch
 
 BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  pkgconfig(liblz4)
@@ -53,11 +53,10 @@ rm -rf core/src/{lua,luajit,lua-cjson,lz4,pdcurses}/*/
 
 %build
 %set_build_flags
-%configure --external=yes
 %if %{use_luajit}
-  --runtime=luajit
+%configure --external=y --runtime=luajit
 %else
-  --runtime=lua
+%configure --external=y --runtime=lua
 %endif
 
 %make_build

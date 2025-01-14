@@ -7,6 +7,14 @@
 * [#5994](https://github.com/xmake-io/xmake/issues/5994): Profile process performance
 * [#5995](https://github.com/xmake-io/xmake/pull/5995): Add profile support for vs generator
 * [#5949](https://github.com/xmake-io/xmake/pull/5949): Add rule nodejs.module
+* [#3380](https://github.com/xmake-io/xmake/issues/3380): Add namespace support
+* [#5945](https://github.com/xmake-io/xmake/issues/5945): Check pkgconfig/cmake importfiles for package
+* [#6054](https://github.com/xmake-io/xmake/issues/6054): Add xmake bundle for linux
+* [#6071](https://github.com/xmake-io/xmake/issues/6071): Improve to download package for git url, support for sparse-checkout
+
+### Bugs fixed
+
+* [#272](https://github.com/tboox/tbox/issues/272): Fix xmake stuck when readfile always return zero for msvc + /O1
 
 ## v2.9.7
 
@@ -1931,6 +1939,14 @@
 * [#5994](https://github.com/xmake-io/xmake/issues/5994): 分析进程执行性能
 * [#5995](https://github.com/xmake-io/xmake/pull/5995): 为 vs generator 添加 profile 支持
 * [#5949](https://github.com/xmake-io/xmake/pull/5949): 添加 nodejs.module 规则
+* [#3380](https://github.com/xmake-io/xmake/issues/3380): 添加命名空间支持
+* [#5945](https://github.com/xmake-io/xmake/issues/5945): 检测 pkgconfig/cmake 导入文件
+* [#6054](https://github.com/xmake-io/xmake/issues/6054): 为 linux 添加 xmake bundle 包
+* [#6071](https://github.com/xmake-io/xmake/issues/6071): 改进 git 包下载，支持仅仅 clone 指定子目录
+
+### Bugs 修复
+
+* [#272](https://github.com/tboox/tbox/issues/272): 修复 msvc + /O1 时候，错误的编译器优化导致 xmake 加载卡住
 
 ## v2.9.7
 

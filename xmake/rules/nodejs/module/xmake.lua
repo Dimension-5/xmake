@@ -20,13 +20,13 @@
 
 -- usage:
 --
--- npm add -D node-addon-api node-api-headers
+-- add_requires("node-addon-api")
 --
 -- target("foo")
 -- do
 --     set_languages("cxx17")
 --     add_rules("nodejs.module")
---     add_includedirs("node_modules/node-addon-api", "node_modules/node-api-headers/include")
+--     add_packages("node-addon-api")
 --     add_files("*.cc")
 -- end
 rule("nodejs.module")
@@ -34,7 +34,6 @@ rule("nodejs.module")
         -- imports
         import("core.cache.detectcache")
         import("core.project.target", { alias = "project_target" })
-        import("devel.git")
 
         -- set kind
         if target:is_plat("macosx") then
@@ -69,7 +68,8 @@ rule("nodejs.module")
             target:set("kind", "shared")
         end
         local moduledir = path.directory((target:name():gsub('%.', '/')))
-        local installdir = path.join("build", get_config("mode"))
+        local mode = get_config("mode")
+        local installdir = path.join("build", mode:sub(1, 1):upper() .. mode:sub(2))
         import("target.action.install")(target, {
             installdir = installdir,
             libdir = moduledir,

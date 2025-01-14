@@ -56,7 +56,26 @@ local sandbox_module = require("sandbox/modules/import/core/sandbox/module")
 function _instance.new(name, info, opt)
     opt = opt or {}
     local instance = table.inherit(_instance)
-    instance._NAME      = name
+    if name then
+        local parts = name:split("::", {plain = true})
+        local managers = package._memcache():get("managers")
+        if managers == nil and #parts == 2 then
+            managers = hashset.new()
+            for _, dir in ipairs(os.dirs(path.join(os.programdir(), "modules/package/manager/*"))) do
+                managers:insert(path.filename(dir))
+            end
+            package._memcache():set("managers", managers)
+        end
+        if #parts == 2 and managers and managers:has(parts[1]) then
+            instance._NAME = name
+        else
+            instance._NAME = parts[#parts]
+            table.remove(parts)
+            if #parts > 0 then
+                instance._NAMESPACE = table.concat(parts, "::")
+            end
+        end
+    end
     instance._INFO      = info
     instance._REPO      = opt.repo
     instance._SCRIPTDIR = opt.scriptdir and path.absolute(opt.scriptdir)
@@ -73,9 +92,30 @@ function _instance:_memcache()
     return cache
 end
 
--- get the package name
+-- get the package name without namespace
 function _instance:name()
     return self._NAME
+end
+
+-- get the namespace
+function _instance:namespace()
+    return self._NAMESPACE
+end
+
+-- get the full name (with namespace)
+function _instance:fullname()
+    local namespace = self:namespace()
+    return namespace and namespace .. "::" .. self:name() or self:name()
+end
+
+-- get the display name (with namespace and ~label)
+function _instance:displayname()
+    return self._DISPLAYNAME
+end
+
+-- set the display name
+function _instance:displayname_set(displayname)
+    self._DISPLAYNAME = displayname
 end
 
 -- get the type: package
@@ -311,9 +351,17 @@ function _instance:url_version(url)
     return self:extraconf("urls", url, "version")
 end
 
--- get the excludes list of url for the archive extractor, @note need raw url
+-- get the excludes paths of url
+-- @note it supports the path pattern, but it only supports for archiver.
 function _instance:url_excludes(url)
     return self:extraconf("urls", url, "excludes")
+end
+
+-- get the includes paths of url
+-- @note it does not support the path pattern, and it only supports for git url now.
+-- @see https://github.com/xmake-io/xmake/issues/6071
+function _instance:url_includes(url)
+    return self:extraconf("urls", url, "includes")
 end
 
 -- get the http headers of url, @note need raw url
@@ -1276,6 +1324,7 @@ function _instance:toolchains()
             local toolchain_opt = project and project.extraconf("target.toolchains", name) or {}
             toolchain_opt.plat = self:plat()
             toolchain_opt.arch = self:arch()
+            toolchain_opt.namespace = self:namespace()
             local toolchain_inst, errors = toolchain.load(name, toolchain_opt)
             if not toolchain_inst and project then
                 toolchain_inst = project.toolchain(name, toolchain_opt)
@@ -1516,16 +1565,6 @@ end
 function _instance:label()
     local requireinfo = self:requireinfo()
     return requireinfo and requireinfo.label
-end
-
--- get the display name
-function _instance:displayname()
-    return self._DISPLAYNAME
-end
-
--- set the display name
-function _instance:displayname_set(displayname)
-    self._DISPLAYNAME = displayname
 end
 
 -- invalidate configs
@@ -2683,6 +2722,30 @@ function _instance:check_fcsnippets(snippets, opt)
     return sandbox_module.import("lib.detect.check_fcsnippets", {anonymous = true})(snippets, opt)
 end
 
+-- check the given importfiles?
+--
+-- @param names     the import filenames (without .pc/.cmake extension), e.g. pkgconfig::libxml-2.0, cmake::CURL
+-- @param opt       the argument options
+--
+-- @return          true or false, errors
+--
+function _instance:check_importfiles(names, opt)
+    opt = opt or {}
+    if opt.PKG_CONFIG_PATH == nil then
+        local PKG_CONFIG_PATH = {}
+        local linkdirs = table.wrap(self:get("linkdirs") or "lib")
+        local installdir = self:installdir()
+        for _, linkdir in ipairs(linkdirs) do
+            table.insert(PKG_CONFIG_PATH, path.join(installdir, linkdir, "pkgconfig"))
+        end
+        opt.PKG_CONFIG_PATH = PKG_CONFIG_PATH
+    end
+    if opt.CMAKE_PREFIX_PATH == nil then
+        opt.CMAKE_PREFIX_PATH = self:installdir()
+    end
+    return sandbox_module.import("lib.detect.check_importfiles", {anonymous = true})(names or ("pkgconfig::" .. self:name()), opt)
+end
+
 -- the current mode is belong to the given modes?
 function package._api_is_mode(interp, ...)
     return config.is_mode(...)
@@ -2916,7 +2979,7 @@ function package.load_from_system(packagename)
         end
 
         -- make sandbox instance with the given script
-        instance, errors = sandbox.new(on_install, interp:filter())
+        instance, errors = sandbox.new(on_install, {filter = interp:filter(), namespace = interp:namespace()})
         if not instance then
             return nil, errors
         end
@@ -2972,7 +3035,16 @@ function package.load_from_project(packagename, project)
 
     -- get package info
     local packageinfo = packages[packagename]
-    if not packageinfo then
+    if packageinfo == nil and project.namespaces() then
+        for _, namespace in ipairs(project.namespaces()) do
+            packageinfo = packages[namespace .. "::" .. packagename]
+            if packageinfo then
+                packagename = namespace .. "::" .. packagename
+                break
+            end
+        end
+    end
+    if packageinfo == nil then
         return
     end
 
