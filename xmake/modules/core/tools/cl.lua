@@ -26,7 +26,7 @@ import("core.project.project")
 import("core.project.policy")
 import("core.language.language")
 import("private.tools.vstool")
-import("private.tools.cl.parse_include")
+import("core.tools.cl.parse_include")
 import("private.cache.build_cache")
 import("private.service.distcc_build.client", {alias = "distcc_build_client"})
 import("utils.progress")
@@ -778,10 +778,12 @@ function compile(self, sourcefile, objectfile, dependinfo, flags, opt)
     -- generate the dependent includes
     if dependinfo then
         if depfile and os.isfile(depfile) then
-            dependinfo.depfiles_cl_json = io.readfile(depfile)
+            dependinfo.depfiles_format = "cl_json"
+            dependinfo.depfiles = io.readfile(depfile)
             os.tryrm(depfile)
         elseif outdata then
-            dependinfo.depfiles_cl = outdata
+            dependinfo.depfiles_format = "cl"
+            dependinfo.depfiles = outdata
         end
     end
 end

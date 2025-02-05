@@ -2,6 +2,8 @@
 
 ## master (unreleased)
 
+## v2.9.8
+
 ### New features
 
 * [#5994](https://github.com/xmake-io/xmake/issues/5994): Profile process performance
@@ -11,10 +13,16 @@
 * [#5945](https://github.com/xmake-io/xmake/issues/5945): Check pkgconfig/cmake importfiles for package
 * [#6054](https://github.com/xmake-io/xmake/issues/6054): Add xmake bundle for linux
 * [#6071](https://github.com/xmake-io/xmake/issues/6071): Improve to download package for git url, support for sparse-checkout
+* [#5163](https://github.com/xmake-io/xmake/issues/5163): Support TI-CGT C2000/C6000 compiler
+* [#5344](https://github.com/xmake-io/xmake/issues/5344): Support IAR ARM C/C++ compiler
+* [#5554](https://github.com/xmake-io/xmake/issues/5554): Add custom unknown toolchains support
 
 ### Changes
 
 * [#6056](https://github.com/xmake-io/xmake/pull/6056): Build and release xmake/arm64 on windows.
+* [#6097](https://github.com/xmake-io/xmake/pull/6097): Add qt_host Option to Enable Cross-Platform Qt Builds Using Host SDK Tools
+* [#6120](https://github.com/xmake-io/xmake/issues/6120): Add custom preprocessor for configfiles
+* [#6088](https://github.com/xmake-io/xmake/issues/6088): Improve configfiles to generate export macro
 
 ### Bugs fixed
 
@@ -1939,6 +1947,8 @@
 
 ## master (开发中)
 
+## v2.9.8
+
 ### 新特性
 
 * [#5994](https://github.com/xmake-io/xmake/issues/5994): 分析进程执行性能
@@ -1948,10 +1958,16 @@
 * [#5945](https://github.com/xmake-io/xmake/issues/5945): 检测 pkgconfig/cmake 导入文件
 * [#6054](https://github.com/xmake-io/xmake/issues/6054): 为 linux 添加 xmake bundle 包
 * [#6071](https://github.com/xmake-io/xmake/issues/6071): 改进 git 包下载，支持仅仅 clone 指定子目录
+* [#5163](https://github.com/xmake-io/xmake/issues/5163): 支持 TI-CGT C2000/C6000 编译器
+* [#5344](https://github.com/xmake-io/xmake/issues/5344): 支持 IAR ARM C/C++ 编译器
+* [#5554](https://github.com/xmake-io/xmake/issues/5554): 添加自定义未知工具链支持
 
 ### 改进
 
 * [#6056](https://github.com/xmake-io/xmake/pull/6056): 添加 CI 去构建发布 windows arm64 版本。
+* [#6097](https://github.com/xmake-io/xmake/pull/6097): 添加 qt_host 支持交叉编译 Qt 项目
+* [#6120](https://github.com/xmake-io/xmake/issues/6120): 改进 configfiles 添加自定义预处理支持
+* [#6088](https://github.com/xmake-io/xmake/issues/6088): 改进 configfiles 去生成导出宏
 
 ### Bugs 修复
 

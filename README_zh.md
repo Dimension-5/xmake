@@ -307,6 +307,9 @@ iverilog      Icarus Verilog
 verilator     Verilator open-source SystemVerilog simulator and lint system
 cosmocc       build-once run-anywhere
 hdk           Harmony SDK
+ti-c2000      TI-CGT C2000 compiler
+ti-c6000      TI-CGT C6000 compiler
+iararm        IAR ARM C/C++ Compiler
 ```
 
 ## 支持语言
