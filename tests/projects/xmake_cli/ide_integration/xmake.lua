@@ -1,9 +1,7 @@
 add_rules("mode.debug", "mode.release")
 add_requires("libxmake")
-target("xmake")
+target("ide")
     add_files("src/*.c")
-    if is_plat("windows") then
-        add_files("src/*.rc")
-    end
     add_packages("libxmake")
+    set_rundir(".")
 
