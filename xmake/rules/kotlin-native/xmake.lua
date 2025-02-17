@@ -18,23 +18,17 @@
 -- @file        xmake.lua
 --
 
--- build linux driver module
-rule("platform.linux.module")
-    set_sourcekinds("cc")
+rule("kotlin-native.build")
+    set_sourcekinds("kc")
     on_load(function (target)
-        import("driver_modules").load(target)
+        if target:is_static() then
+            target:add("arflags", {"-produce", "static"}, {force = true})
+        elseif target:is_shared() then
+            target:add("shflags", {"-produce", "dynamic"}, {force = true})
+        end
     end)
-    on_config(function (target)
-        import("driver_modules").config(target)
-    end)
-    on_link(function (target, opt)
-        import("driver_modules").link(target, opt)
-    end)
-    on_install(function (target)
-        import("driver_modules").install(target)
-    end)
-    on_uninstall(function (target)
-        import("driver_modules").uninstall(target)
-    end)
+    on_build("build.target")
 
-
+rule("kotlin-native")
+    add_deps("kotlin-native.build")
+    add_deps("utils.inherit.links")

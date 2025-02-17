@@ -15,26 +15,26 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki
--- @file        xmake.lua
+-- @file        check_main.lua
 --
 
--- build linux driver module
-rule("platform.linux.module")
-    set_sourcekinds("cc")
-    on_load(function (target)
-        import("driver_modules").load(target)
-    end)
-    on_config(function (target)
-        import("driver_modules").config(target)
-    end)
-    on_link(function (target, opt)
-        import("driver_modules").link(target, opt)
-    end)
-    on_install(function (target)
-        import("driver_modules").install(target)
-    end)
-    on_uninstall(function (target)
-        import("driver_modules").uninstall(target)
-    end)
+-- check it
+function main(sourcefile)
+
+    -- load source code
+    local sourcecode = io.readfile(sourcefile)
+
+    -- remove comment first
+    sourcecode = sourcecode:gsub("/%*.-%*/", "")
+    sourcecode = sourcecode:gsub("//.-\n", "\n")
+
+    -- find fun main() {
+    if sourcecode:find("fun%s+main%s*%(.-%)") then
+        return true
+    end
+
+    -- no main function
+    return false
+end
 
 

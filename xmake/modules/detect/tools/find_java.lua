@@ -15,26 +15,36 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki
--- @file        xmake.lua
+-- @file        find_java.lua
 --
 
--- build linux driver module
-rule("platform.linux.module")
-    set_sourcekinds("cc")
-    on_load(function (target)
-        import("driver_modules").load(target)
-    end)
-    on_config(function (target)
-        import("driver_modules").config(target)
-    end)
-    on_link(function (target, opt)
-        import("driver_modules").link(target, opt)
-    end)
-    on_install(function (target)
-        import("driver_modules").install(target)
-    end)
-    on_uninstall(function (target)
-        import("driver_modules").uninstall(target)
-    end)
+-- imports
+import("lib.detect.find_program")
+import("lib.detect.find_programver")
 
+-- find java
+--
+-- @param opt   the argument options, e.g. {version = true}
+--
+-- @return      program, version
+--
+-- @code
+--
+-- local java = find_java()
+-- local java, version = find_java({version = true})
+--
+-- @endcode
+--
+function main(opt)
+    opt         = opt or {}
+    opt.check   = opt.check or "-version"
+    opt.command = opt.command or "-version"
+
+    local program = find_program(opt.program or "java", opt)
+    local version = nil
+    if program and opt and opt.version then
+        version = find_programver(program, opt)
+    end
+    return program, version
+end
 
