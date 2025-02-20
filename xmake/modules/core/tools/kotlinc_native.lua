@@ -23,20 +23,23 @@ import("core.base.option")
 import("core.project.config")
 import("core.project.project")
 import("core.language.language")
+import("core.tool.toolchain")
+import("lib.detect.find_tool")
 
 -- init it
 function init(self)
 end
 
 -- make the build arguments list
-function buildargv(self, sourcefiles, targetkind, targetfile, flags)
+function buildargv(self, sourcefiles, targetkind, targetfile, flags, opt)
     return self:program(), table.join(flags, sourcefiles, "-o", targetfile)
 end
 
 -- build the target file
-function build(self, sourcefiles, targetkind, targetfile, flags)
+function build(self, sourcefiles, targetkind, targetfile, flags, opt)
     os.mkdir(path.directory(targetfile))
-    os.runv(buildargv(self, sourcefiles, targetkind, targetfile, flags))
+    local program, argv = buildargv(self, sourcefiles, targetkind, targetfile, flags)
+    os.runv(program, argv, {envs = self:runenvs()})
     if targetkind == "binary" then
         local targetfile_real = targetfile .. (self:is_plat("windows") and ".exe" or ".kexe")
         if os.isfile(targetfile_real) then
@@ -49,6 +52,35 @@ function build(self, sourcefiles, targetkind, targetfile, flags)
                 end
             end
         end
+    elseif targetkind == "static" and self:is_plat("windows", "mingw") then
+        local headerfile_real = targetfile .. "_api.h"
+        local headerfile = path.join(path.directory(targetfile), "lib" .. path.basename(targetfile) .. "_api.h")
+        if os.isfile(headerfile_real) then
+            os.mv(headerfile_real, headerfile)
+        end
+
+        local targetfile_real = path.join(path.directory(targetfile), "lib" .. path.basename(targetfile) .. ".lib.a")
+        if os.isfile(targetfile_real) then
+            os.mv(targetfile_real, targetfile)
+        end
+    elseif targetkind == "shared" and self:is_plat("windows", "mingw") then
+        local headerfile_real = path.join(path.directory(targetfile), path.basename(targetfile) .. "_api.h")
+        local headerfile = path.join(path.directory(targetfile), "lib" .. path.basename(targetfile) .. "_api.h")
+        if os.isfile(headerfile_real) then
+            os.mv(headerfile_real, headerfile)
+        end
+        local deffile = path.join(path.directory(targetfile), path.basename(targetfile) .. ".def")
+        local libfile = path.join(path.directory(targetfile), path.basename(targetfile) .. ".lib")
+        if os.isfile(deffile) then
+            local msvc = toolchain.load("msvc", {plat = self:plat(), arch = self:arch()})
+            if msvc:check() then
+                local lib = find_tool("lib", {envs = msvc:runenvs()})
+                if lib then
+                    os.runv(lib.program, {"/def:" .. deffile, "/out:" .. libfile}, {envs = msvc:runenvs()})
+                end
+            end
+        end
     end
 end
+
 

@@ -32,16 +32,37 @@ toolchain("kotlin-native")
         import("lib.detect.find_tool")
 
         local paths = {}
+        local runenvs = {}
+        local java_home = os.getenv("JAVA_HOME")
+        local pathenvs = os.getenv("PATH")
+        if pathenvs then
+            pathenvs = path.splitenv(pathenvs)
+        else
+            pathenvs = {}
+        end
         for _, package in ipairs(toolchain:packages()) do
             local envs = package:envs()
             if envs then
                 table.join2(paths, envs.PATH)
+                table.join2(pathenvs, envs.PATH)
+                if not java_home then
+                    java_home = envs.JAVA_HOME
+                end
+            end
+        end
+        if not find_tool("java") then
+            if #pathenvs > 0 then
+                runenvs.PATH = path.joinenv(pathenvs)
+            end
+            if java_home then
+                runenvs.JAVA_HOME = table.unwrap(java_home)
             end
         end
         if toolchain:bindir() then
             table.insert(paths, toolchain:bindir())
         end
-        local kotlinc_native = find_tool("kotlinc-native", {paths = paths})
+
+        local kotlinc_native = find_tool("kotlinc-native", {paths = paths, envs = runenvs})
         if kotlinc_native and kotlinc_native.program then
             kotlinc_native = kotlinc_native.program
         end
@@ -50,6 +71,7 @@ toolchain("kotlin-native")
                 local bindir = path.directory(kotlinc_native)
                 toolchain:config_set("bindir", bindir)
                 toolchain:config_set("sdkdir", path.directory(bindir))
+                toolchain:config_set("runenvs", runenvs)
             end
             toolchain:configs_save()
             return true
@@ -58,6 +80,14 @@ toolchain("kotlin-native")
 
     on_load(function (toolchain)
         import("private.core.base.is_cross")
+
+        -- bind runenvs for java
+        local runenvs = toolchain:config("runenvs")
+        if runenvs then
+            for k, v in pairs(runenvs) do
+                toolchain:add("runenvs", k, table.unpack(path.splitenv(v)))
+            end
+        end
 
         -- kotlinc-native -list-targets
         local target_plat = toolchain:plat()
