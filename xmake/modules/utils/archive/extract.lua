@@ -22,12 +22,6 @@
 import("core.base.option")
 import("lib.detect.find_file")
 import("lib.detect.find_tool")
-import("detect.tools.find_xz")
-import("detect.tools.find_7z")
-import("detect.tools.find_tar")
-import("detect.tools.find_gzip")
-import("detect.tools.find_unzip")
-import("detect.tools.find_bzip2")
 import("extract_xmz")
 import("extension", {alias = "get_archive_extension"})
 
@@ -47,10 +41,11 @@ function _extract_using_tar(archivefile, outputdir, extension, opt)
     end
 
     -- find tar
-    local program = find_tar()
-    if not program then
+    local tar = find_tool("tar")
+    if not tar then
         return false
     end
+    local program = tar.program
 
     -- init argv
     local argv = {}
@@ -106,10 +101,11 @@ end
 function _extract_using_7z(archivefile, outputdir, extension, opt)
 
     -- find 7z
-    local program = find_7z()
-    if not program then
+    local 7z = find_tool("7z")
+    if not 7z then
         return false
     end
+    local program = 7z.program
 
     -- p7zip cannot extract other archive format on msys/cygwin, but it can extract .tgz
     -- https://github.com/xmake-io/xmake/issues/1575#issuecomment-898205462
@@ -171,13 +167,7 @@ function _extract_using_7z(archivefile, outputdir, extension, opt)
         os.tryrm(path.join(outputdir, "*.paxheader"))
     end
 
-    -- continue to extract *.tar file
-    if outputdir_old then
-        local tarfile = find_file("**.tar", outputdir)
-        if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_7z, _extract_using_tar}, opt)
-        end
-    end
+    _extract_uncompressed_tar(outputdir_old, outputdir, opt)
     return true
 end
 
@@ -185,10 +175,11 @@ end
 function _extract_using_gzip(archivefile, outputdir, extension, opt)
 
     -- find gzip
-    local program = find_gzip()
-    if not program then
+    local gzip = find_tool("gzip")
+    if not gzip then
         return false
     end
+    local program = gzip.program
 
     -- extract to *.tar file first
     local outputdir_old = nil
@@ -220,13 +211,7 @@ function _extract_using_gzip(archivefile, outputdir, extension, opt)
     -- extract it
     os.vrunv(program, argv, {curdir = outputdir})
 
-    -- continue to extract *.tar file
-    if outputdir_old then
-        local tarfile = find_file("**.tar", outputdir)
-        if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_7z, _extract_using_tar}, opt)
-        end
-    end
+    _extract_uncompressed_tar(outputdir_old, outputdir, opt)
     return true
 end
 
@@ -234,10 +219,11 @@ end
 function _extract_using_xz(archivefile, outputdir, extension, opt)
 
     -- find xz
-    local program = find_xz()
-    if not program then
+    local xz = find_tool("xz")
+    if not xz then
         return false
     end
+    local program = xz.program
 
     -- extract to *.tar file first
     local outputdir_old = nil
@@ -269,13 +255,51 @@ function _extract_using_xz(archivefile, outputdir, extension, opt)
     -- extract it
     os.vrunv(program, argv, {curdir = outputdir})
 
-    -- continue to extract *.tar file
-    if outputdir_old then
-        local tarfile = find_file("**.tar", outputdir)
-        if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_7z, _extract_using_tar}, opt)
-        end
+    _extract_uncompressed_tar(outputdir_old, outputdir, opt)
+    return true
+end
+
+-- extract archivefile using zstd
+function _extract_using_zstd(archivefile, outputdir, extension, opt)
+
+    -- find zstd
+    local zstd = find_tool("zstd")
+    if not zstd then
+        return false
     end
+    local program = zstd.program
+
+    -- extract to *.tar file first
+    local outputdir_old = nil
+    if extension:startswith(".tar.") then
+        outputdir_old = outputdir
+        outputdir = os.tmpfile({ramdisk = false}) .. ".tar"
+    end
+
+    -- init temporary archivefile
+    local tmpfile = path.join(outputdir, path.filename(archivefile))
+
+    -- init argv
+    local argv = {"-d"}
+    if not option.get("verbose") then
+        table.insert(argv, "-q")
+    end
+    table.insert(argv, tmpfile)
+
+    -- ensure output directory
+    if not os.isdir(outputdir) then
+        os.mkdir(outputdir)
+    end
+
+    -- copy archivefile to outputdir first
+    if path.absolute(archivefile) ~= path.absolute(tmpfile) then
+        os.cp(archivefile, tmpfile)
+    end
+
+    -- extract it
+    os.vrunv(program, argv, {curdir = outputdir})
+
+    _extract_uncompressed_tar(outputdir_old, outputdir, opt)
     return true
 end
 
@@ -283,10 +307,11 @@ end
 function _extract_using_unzip(archivefile, outputdir, extension, opt)
 
     -- find unzip
-    local program = find_unzip()
-    if not program then
+    local unzip = find_tool("unzip")
+    if not unzip then
         return false
     end
+    local program = unzip.program
 
     -- extract to *.tar file first
     local outputdir_old = nil
@@ -322,13 +347,7 @@ function _extract_using_unzip(archivefile, outputdir, extension, opt)
     -- extract it
     os.vrunv(program, argv)
 
-    -- continue to extract *.tar file
-    if outputdir_old then
-        local tarfile = find_file("**.tar", outputdir)
-        if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_tar, _extract_using_7z}, opt)
-        end
-    end
+    _extract_uncompressed_tar(outputdir_old, outputdir, opt)
     return true
 end
 
@@ -361,13 +380,7 @@ function _extract_using_powershell(archivefile, outputdir, extension, opt)
     local argv = {"-ExecutionPolicy", "Bypass", "-File", scriptfile, archivefile, outputdir}
     os.vrunv(powershell.program, argv)
 
-    -- continue to extract *.tar file
-    if outputdir_old then
-        local tarfile = find_file("**.tar", outputdir)
-        if tarfile and os.isfile(tarfile) then
-            return _extract(tarfile, outputdir_old, ".tar", {_extract_using_tar, _extract_using_7z}, opt)
-        end
-    end
+    _extract_uncompressed_tar(outputdir_old, outputdir, opt)
     return true
 end
 
@@ -376,10 +389,11 @@ end
 function _extract_using_bzip2(archivefile, outputdir, extension, opt)
 
     -- find bzip2
-    local program = find_bzip2()
-    if not program then
+    local bzip2 = find_tool("bzip2")
+    if not bzip2 then
         return false
     end
+    local program = bzip2.program
 
     -- extract to *.tar file first
     local outputdir_old = nil
@@ -416,14 +430,18 @@ function _extract_using_bzip2(archivefile, outputdir, extension, opt)
     -- extract it
     os.vrunv(program, argv, {curdir = outputdir})
 
-    -- continue to extract *.tar file
+    _extract_uncompressed_tar(outputdir_old, outputdir, opt)
+    return true
+end
+
+-- extract *.tar after decompress
+function _extract_uncompressed_tar(outputdir_old, outputdir, opt)
     if outputdir_old then
         local tarfile = find_file("**.tar", outputdir)
         if tarfile and os.isfile(tarfile) then
             return _extract(tarfile, outputdir_old, ".tar", {_extract_using_7z, _extract_using_tar}, opt)
         end
     end
-    return true
 end
 
 -- extract archive file using extractors
@@ -464,18 +482,21 @@ function main(archivefile, outputdir, opt)
     if is_subhost("windows") then
         -- we use 7z first, becase xmake package has builtin 7z program on windows
         -- tar/windows can not extract .bz2 ...
+        -- 7z doesn't support zstd by default
         extractors =
         {
             [".zip"]        = {_extract_using_7z, _extract_using_unzip, _extract_using_tar, _extract_using_powershell}
         ,   [".7z"]         = {_extract_using_7z}
         ,   [".gz"]         = {_extract_using_7z, _extract_using_gzip, _extract_using_tar}
         ,   [".xz"]         = {_extract_using_7z, _extract_using_xz, _extract_using_tar}
+        ,   [".zst"]        = {_extract_using_zstd, _extract_using_tar}
         ,   [".tgz"]        = {_extract_using_7z, _extract_using_tar}
         ,   [".bz2"]        = {_extract_using_7z, _extract_using_bzip2}
         ,   [".tar"]        = {_extract_using_7z, _extract_using_tar}
         -- @see https://github.com/xmake-io/xmake/issues/5538
         ,   [".tar.gz"]     = {_extract_using_tar, _extract_using_7z, _extract_using_gzip}
         ,   [".tar.xz"]     = {_extract_using_7z, _extract_using_xz}
+        ,   [".tar.zst"]    = {_extract_using_zstd}
         ,   [".tar.bz2"]    = {_extract_using_7z, _extract_using_bzip2}
         ,   [".tar.lz"]     = {_extract_using_7z}
         ,   [".tar.Z"]      = {_extract_using_7z}
@@ -489,11 +510,13 @@ function main(archivefile, outputdir, opt)
         ,   [".7z"]         = {_extract_using_7z}
         ,   [".gz"]         = {_extract_using_gzip, _extract_using_tar, _extract_using_7z}
         ,   [".xz"]         = {_extract_using_xz, _extract_using_tar, _extract_using_7z}
+        ,   [".zst"]        = {_extract_using_zstd, _extract_using_tar}
         ,   [".tgz"]        = {_extract_using_tar, _extract_using_7z}
         ,   [".bz2"]        = {_extract_using_bzip2, _extract_using_tar, _extract_using_7z}
         ,   [".tar"]        = {_extract_using_tar, _extract_using_7z}
         ,   [".tar.gz"]     = {_extract_using_tar, _extract_using_7z, _extract_using_gzip}
         ,   [".tar.xz"]     = {_extract_using_tar, _extract_using_7z, _extract_using_xz}
+        ,   [".tar.zst"]     = {_extract_using_tar, _extract_using_zstd}
         ,   [".tar.bz2"]    = {_extract_using_tar, _extract_using_7z, _extract_using_bzip2}
         ,   [".tar.lz"]     = {_extract_using_tar, _extract_using_7z}
         ,   [".tar.Z"]      = {_extract_using_tar, _extract_using_7z}
@@ -507,4 +530,3 @@ function main(archivefile, outputdir, opt)
     -- extract it
     return _extract(archivefile, outputdir, extension, extractors[extension], opt)
 end
-
