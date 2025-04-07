@@ -59,6 +59,9 @@ function check_macros(definition, macros, opt)
         if opt.languages then
             set_languages(opt.languages)
         end
+        if opt.defines then
+            add_defines(opt.defines)
+        end
         if opt.cflags then
             add_cflags(opt.cflags)
         end
@@ -67,6 +70,11 @@ function check_macros(definition, macros, opt)
         end
         if opt.cxxflags then
             add_cxxflags(opt.cxxflags)
+        end
+        if opt.languages and opt.languages:startswith("c++") then
+            add_cxxincludes(opt.includes)
+        else
+            add_cincludes(opt.includes)
         end
     option_end()
     interp_restore_scope()
@@ -115,6 +123,9 @@ function configvar_check_macros(definition, macros, opt)
         if opt.languages then
             set_languages(opt.languages)
         end
+        if opt.defines then
+            add_defines(opt.defines)
+        end
         if opt.cflags then
             add_cflags(opt.cflags)
         end
@@ -123,6 +134,13 @@ function configvar_check_macros(definition, macros, opt)
         end
         if opt.cxxflags then
             add_cxxflags(opt.cxxflags)
+        end
+        if opt.includes then
+            if opt.languages and opt.languages:startswith("c++") then
+                add_cxxincludes(opt.includes)
+            else
+                add_cincludes(opt.includes)
+            end
         end
     option_end()
     interp_restore_scope()
