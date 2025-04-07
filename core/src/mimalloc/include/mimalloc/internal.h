@@ -89,7 +89,7 @@ bool          _mi_getenv(const char* name, char* result, size_t result_size);
 // "options.c"
 void          _mi_fputs(mi_output_fun* out, void* arg, const char* prefix, const char* message);
 void          _mi_fprintf(mi_output_fun* out, void* arg, const char* fmt, ...);
-void          _mi_raw_message(const char* fmt, ...);  
+void          _mi_raw_message(const char* fmt, ...);
 void          _mi_message(const char* fmt, ...);
 void          _mi_warning_message(const char* fmt, ...);
 void          _mi_verbose_message(const char* fmt, ...);
@@ -150,14 +150,14 @@ bool          _mi_os_decommit(void* addr, size_t size);
 bool          _mi_os_protect(void* addr, size_t size);
 bool          _mi_os_unprotect(void* addr, size_t size);
 bool          _mi_os_purge(void* p, size_t size);
-bool          _mi_os_purge_ex(void* p, size_t size, bool allow_reset, size_t stats_size);
+bool          _mi_os_purge_ex(void* p, size_t size, bool allow_reset, size_t stats_size, mi_commit_fun_t* commit_fun, void* commit_fun_arg);
 bool          _mi_os_commit_ex(void* addr, size_t size, bool* is_zero, size_t stat_size);
 
 size_t        _mi_os_secure_guard_page_size(void);
-bool          _mi_os_secure_guard_page_set_at(void* addr, bool is_pinned);
-bool          _mi_os_secure_guard_page_set_before(void* addr, bool is_pinned);
-bool          _mi_os_secure_guard_page_reset_at(void* addr);
-bool          _mi_os_secure_guard_page_reset_before(void* addr);
+bool          _mi_os_secure_guard_page_set_at(void* addr, mi_memid_t memid);
+bool          _mi_os_secure_guard_page_set_before(void* addr, mi_memid_t memid);
+bool          _mi_os_secure_guard_page_reset_at(void* addr, mi_memid_t memid);
+bool          _mi_os_secure_guard_page_reset_before(void* addr, mi_memid_t memid);
 
 int           _mi_os_numa_node(void);
 int           _mi_os_numa_node_count(void);
@@ -168,8 +168,8 @@ void*         _mi_os_alloc_aligned_at_offset(size_t size, size_t alignment, size
 void*         _mi_os_get_aligned_hint(size_t try_alignment, size_t size);
 bool          _mi_os_use_large_page(size_t size, size_t alignment);
 size_t        _mi_os_large_page_size(void);
-
 void*         _mi_os_alloc_huge_os_pages(size_t pages, int numa_node, mi_msecs_t max_secs, size_t* pages_reserved, size_t* psize, mi_memid_t* memid);
+
 
 // arena.c
 mi_arena_id_t _mi_arena_id_none(void);
@@ -258,7 +258,7 @@ bool          _mi_page_is_valid(mi_page_t* page);
 
 
 /* -----------------------------------------------------------
-  Assertions
+   Assertions
 ----------------------------------------------------------- */
 
 #if (MI_DEBUG)
@@ -281,6 +281,63 @@ void _mi_assert_fail(const char* assertion, const char* fname, unsigned int line
 #define mi_assert_expensive(x)
 #endif
 
+/* -----------------------------------------------------------
+  Statistics (in `stats.c`)
+----------------------------------------------------------- */
+
+// add to stat keeping track of the peak
+void __mi_stat_increase(mi_stat_count_t* stat, size_t amount);
+void __mi_stat_decrease(mi_stat_count_t* stat, size_t amount);
+void __mi_stat_increase_mt(mi_stat_count_t* stat, size_t amount);
+void __mi_stat_decrease_mt(mi_stat_count_t* stat, size_t amount);
+
+// adjust stat in special cases to compensate for double counting (and does not adjust peak values and can decrease the total)
+void __mi_stat_adjust_increase(mi_stat_count_t* stat, size_t amount);
+void __mi_stat_adjust_decrease(mi_stat_count_t* stat, size_t amount);
+void __mi_stat_adjust_increase_mt(mi_stat_count_t* stat, size_t amount);
+void __mi_stat_adjust_decrease_mt(mi_stat_count_t* stat, size_t amount);
+
+// counters can just be increased
+void __mi_stat_counter_increase(mi_stat_counter_t* stat, size_t amount);
+void __mi_stat_counter_increase_mt(mi_stat_counter_t* stat, size_t amount);
+
+#define mi_subproc_stat_counter_increase(subproc,stat,amount)   __mi_stat_counter_increase_mt( &(subproc)->stats.stat, amount)
+#define mi_subproc_stat_increase(subproc,stat,amount)           __mi_stat_increase_mt( &(subproc)->stats.stat, amount)
+#define mi_subproc_stat_decrease(subproc,stat,amount)           __mi_stat_decrease_mt( &(subproc)->stats.stat, amount)
+#define mi_subproc_stat_adjust_increase(subproc,stat,amnt)      __mi_stat_adjust_increase_mt( &(subproc)->stats.stat, amnt)
+#define mi_subproc_stat_adjust_decrease(subproc,stat,amnt)      __mi_stat_adjust_decrease_mt( &(subproc)->stats.stat, amnt)
+
+#define mi_tld_stat_counter_increase(tld,stat,amount)           __mi_stat_counter_increase( &(tld)->stats.stat, amount)
+#define mi_tld_stat_increase(tld,stat,amount)                   __mi_stat_increase( &(tld)->stats.stat, amount)
+#define mi_tld_stat_decrease(tld,stat,amount)                   __mi_stat_decrease( &(tld)->stats.stat, amount)
+#define mi_tld_stat_adjust_increase(tld,stat,amnt)              __mi_stat_adjust_increase( &(tld)->stats.stat, amnt)
+#define mi_tld_stat_adjust_decrease(tld,stat,amnt)              __mi_stat_adjust_decrease( &(tld)->stats.stat, amnt)
+
+#define mi_os_stat_counter_increase(stat,amount)                mi_subproc_stat_counter_increase(_mi_subproc(),stat,amount)
+#define mi_os_stat_increase(stat,amount)                        mi_subproc_stat_increase(_mi_subproc(),stat,amount)
+#define mi_os_stat_decrease(stat,amount)                        mi_subproc_stat_decrease(_mi_subproc(),stat,amount)
+
+#define mi_heap_stat_counter_increase(heap,stat,amount)         mi_tld_stat_counter_increase(heap->tld, stat, amount)
+#define mi_heap_stat_increase(heap,stat,amount)                 mi_tld_stat_increase( heap->tld, stat, amount)
+#define mi_heap_stat_decrease(heap,stat,amount)                 mi_tld_stat_decrease( heap->tld, stat, amount)
+#define mi_heap_stat_adjust_decrease(heap,stat,amount)          mi_tld_stat_adjust_decrease( heap->tld, stat, amount)
+
+/* -----------------------------------------------------------
+  Options (exposed for the debugger)
+----------------------------------------------------------- */
+typedef enum mi_option_init_e {
+  MI_OPTION_UNINIT,       // not yet initialized
+  MI_OPTION_DEFAULTED,    // not found in the environment, use default value
+  MI_OPTION_INITIALIZED   // found in environment or set explicitly
+} mi_option_init_t;
+
+typedef struct mi_option_desc_s {
+  long              value;  // the value
+  mi_option_init_t  init;   // is it initialized yet? (from the environment)
+  mi_option_t       option; // for debugging: the option index should match the option
+  const char*       name;   // option name without `mimalloc_` prefix
+  const char*       legacy_name; // potential legacy option name
+} mi_option_desc_t;
 
 /* -----------------------------------------------------------
   Inlined definitions
@@ -299,7 +356,9 @@ void _mi_assert_fail(const char* assertion, const char* fname, unsigned int line
 #define MI_INIT64(x)  MI_INIT32(x),MI_INIT32(x)
 #define MI_INIT128(x) MI_INIT64(x),MI_INIT64(x)
 #define MI_INIT256(x) MI_INIT128(x),MI_INIT128(x)
+
 #define MI_INIT74(x)  MI_INIT64(x),MI_INIT8(x),x(),x()
+#define MI_INIT5(x)   MI_INIT4(x),x()
 
 #include <string.h>
 // initialize a local variable to zero; use memset as compilers optimize constant sized memset's
@@ -507,14 +566,14 @@ static inline size_t _mi_page_map_index(const void* p, size_t* sub_idx) {
 static inline mi_page_t* _mi_unchecked_ptr_page(const void* p) {
   size_t sub_idx;
   const size_t idx = _mi_page_map_index(p, &sub_idx);
-  return _mi_page_map[idx][sub_idx];
+  return _mi_page_map[idx][sub_idx];  // NULL if p==NULL
 }
 
 static inline mi_page_t* _mi_checked_ptr_page(const void* p) {
   size_t sub_idx;
   const size_t idx = _mi_page_map_index(p, &sub_idx);
   mi_page_t** const sub = _mi_page_map[idx];
-  if mi_unlikely(sub == NULL) return (mi_page_t*)&_mi_page_empty;
+  if mi_unlikely(sub == NULL) return NULL;
   return sub[sub_idx];
 }
 

@@ -16,7 +16,7 @@ terms of the MIT license. A copy of the license can be found in the file
 
 // Empty page used to initialize the small free pages array
 const mi_page_t _mi_page_empty = {
-  MI_ATOMIC_VAR_INIT(MI_PAGE_IN_FULL_QUEUE),  // xthread_id  (must set flag to catch NULL on a free)
+  MI_ATOMIC_VAR_INIT(0),  // xthread_id 
   NULL,                   // free
   0,                      // used
   0,                      // capacity
@@ -83,7 +83,8 @@ const mi_page_t _mi_page_empty = {
   { { 0 }, { 0 }, { 0 }, { 0 } }, \
   \
   { MI_INIT74(MI_STAT_COUNT_NULL) }, \
-  { MI_INIT74(MI_STAT_COUNT_NULL) }
+  { MI_INIT74(MI_STAT_COUNT_NULL) }, \
+  { MI_INIT5(MI_STAT_COUNT_NULL) }
 
 // --------------------------------------------------------
 // Statically allocate an empty heap as the initial

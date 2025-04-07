@@ -96,6 +96,11 @@ void* _mi_os_get_aligned_hint(size_t try_alignment, size_t size) {
   return NULL;
 }
 
+
+/* -----------------------------------------------------------
+  Guard page allocation
+----------------------------------------------------------- */
+
 // In secure mode, return the size of a guard page, otherwise 0
 size_t _mi_os_secure_guard_page_size(void) {
   #if MI_SECURE > 0
@@ -106,39 +111,58 @@ size_t _mi_os_secure_guard_page_size(void) {
 }
 
 // In secure mode, try to decommit an area and output a warning if this fails.
-bool _mi_os_secure_guard_page_set_at(void* addr, bool is_pinned) {
+bool _mi_os_secure_guard_page_set_at(void* addr, mi_memid_t memid) {
   if (addr == NULL) return true;
   #if MI_SECURE > 0
-  const bool ok = (is_pinned ? false : _mi_os_decommit(addr, _mi_os_secure_guard_page_size()));
+  bool ok = false;
+  if (!memid.is_pinned) {
+    mi_arena_t* const arena = mi_memid_arena(memid);
+    if (arena != NULL && arena->commit_fun != NULL) {
+      ok = (*(arena->commit_fun))(false /* decommit */, addr, _mi_os_secure_guard_page_size(), NULL, arena->commit_fun_arg);
+    }
+    else {
+      ok = _mi_os_decommit(addr, _mi_os_secure_guard_page_size());
+    }
+  }
   if (!ok) {
     _mi_error_message(EINVAL, "secure level %d, but failed to commit guard page (at %p of size %zu)\n", MI_SECURE, addr, _mi_os_secure_guard_page_size());
   }
   return ok;
   #else
-  MI_UNUSED(is_pinned);
+  MI_UNUSED(memid);
   return true;
   #endif
 }
 
 // In secure mode, try to decommit an area and output a warning if this fails.
-bool _mi_os_secure_guard_page_set_before(void* addr, bool is_pinned) {
-  return _mi_os_secure_guard_page_set_at((uint8_t*)addr - _mi_os_secure_guard_page_size(), is_pinned);
+bool _mi_os_secure_guard_page_set_before(void* addr, mi_memid_t memid) {
+  return _mi_os_secure_guard_page_set_at((uint8_t*)addr - _mi_os_secure_guard_page_size(), memid);
 }
 
 // In secure mode, try to recommit an area
-bool _mi_os_secure_guard_page_reset_at(void* addr) {
+bool _mi_os_secure_guard_page_reset_at(void* addr, mi_memid_t memid) {
   if (addr == NULL) return true;
   #if MI_SECURE > 0
-  return _mi_os_commit(addr, _mi_os_secure_guard_page_size(), NULL);
+  if (!memid.is_pinned) {
+    mi_arena_t* const arena = mi_memid_arena(memid);
+    if (arena != NULL && arena->commit_fun != NULL) {
+      return (*(arena->commit_fun))(true, addr, _mi_os_secure_guard_page_size(), NULL, arena->commit_fun_arg);
+    }
+    else {
+      return _mi_os_commit(addr, _mi_os_secure_guard_page_size(), NULL);
+    }
+  }
   #else
-  return true;
+  MI_UNUSED(memid);
   #endif
+  return true;
 }
 
 // In secure mode, try to recommit an area
-bool _mi_os_secure_guard_page_reset_before(void* addr) {
-  return _mi_os_secure_guard_page_reset_at((uint8_t*)addr - _mi_os_secure_guard_page_size());
+bool _mi_os_secure_guard_page_reset_before(void* addr, mi_memid_t memid) {
+  return _mi_os_secure_guard_page_reset_at((uint8_t*)addr - _mi_os_secure_guard_page_size(), memid);
 }
+
 
 /* -----------------------------------------------------------
   Free memory
@@ -507,14 +531,18 @@ bool _mi_os_reset(void* addr, size_t size) {
 
 // either resets or decommits memory, returns true if the memory needs
 // to be recommitted if it is to be re-used later on.
-bool _mi_os_purge_ex(void* p, size_t size, bool allow_reset, size_t stat_size)
+bool _mi_os_purge_ex(void* p, size_t size, bool allow_reset, size_t stat_size, mi_commit_fun_t* commit_fun, void* commit_fun_arg)
 {
   if (mi_option_get(mi_option_purge_delay) < 0) return false;  // is purging allowed?
   mi_os_stat_counter_increase(purge_calls, 1);
   mi_os_stat_increase(purged, size);
 
-  if (mi_option_is_enabled(mi_option_purge_decommits) &&   // should decommit?
-    !_mi_preloading())                                     // don't decommit during preloading (unsafe)
+  if (commit_fun != NULL) {
+    bool decommitted = (*commit_fun)(false, p, size, NULL, commit_fun_arg);
+    return decommitted; // needs_recommit?
+  }
+  else if (mi_option_is_enabled(mi_option_purge_decommits) &&   // should decommit?
+           !_mi_preloading())                                   // don't decommit during preloading (unsafe)
   {
     bool needs_recommit = true;
     mi_os_decommit_ex(p, size, &needs_recommit, stat_size);
@@ -531,7 +559,7 @@ bool _mi_os_purge_ex(void* p, size_t size, bool allow_reset, size_t stat_size)
 // either resets or decommits memory, returns true if the memory needs
 // to be recommitted if it is to be re-used later on.
 bool _mi_os_purge(void* p, size_t size) {
-  return _mi_os_purge_ex(p, size, true, size);
+  return _mi_os_purge_ex(p, size, true, size, NULL, NULL);
 }
 
 
@@ -690,30 +718,31 @@ static void mi_os_free_huge_os_pages(void* p, size_t size) {
   }
 }
 
+
 /* ----------------------------------------------------------------------------
 Support NUMA aware allocation
 -----------------------------------------------------------------------------*/
 
-static _Atomic(int)  _mi_numa_node_count; // = 0   // cache the node count
+static _Atomic(size_t) mi_numa_node_count; // = 0   // cache the node count
 
 int _mi_os_numa_node_count(void) {
-  int count = mi_atomic_load_acquire(&_mi_numa_node_count);
-  if mi_unlikely(count <= 0) {
+  size_t count = mi_atomic_load_acquire(&mi_numa_node_count);
+  if mi_unlikely(count == 0) {
     long ncount = mi_option_get(mi_option_use_numa_nodes); // given explicitly?
     if (ncount > 0 && ncount < INT_MAX) {
-      count = (int)ncount;
+      count = (size_t)ncount;
     }
     else {
       const size_t n = _mi_prim_numa_node_count(); // or detect dynamically
       if (n == 0 || n > INT_MAX) { count = 1; }
-                            else { count = (int)n; }
+                            else { count = n; }
     }
-    mi_atomic_store_release(&_mi_numa_node_count, count); // save it
+    mi_atomic_store_release(&mi_numa_node_count, count); // save it
     _mi_verbose_message("using %zd numa regions\n", count);
   }
-  return count;
+  mi_assert_internal(count > 0 && count <= INT_MAX);
+  return (int)count;
 }
-
 
 static int mi_os_numa_node_get(void) {
   int numa_count = _mi_os_numa_node_count();
@@ -726,11 +755,13 @@ static int mi_os_numa_node_get(void) {
 }
 
 int _mi_os_numa_node(void) {
-  if mi_likely(mi_atomic_load_relaxed(&_mi_numa_node_count) == 1) { return 0; }
-  else return mi_os_numa_node_get();
+  if mi_likely(mi_atomic_load_relaxed(&mi_numa_node_count) == 1) {
+    return 0;
+  }
+  else {
+    return mi_os_numa_node_get();
+  }
 }
-
-
 
 
 /* ----------------------------------------------------------------------------
