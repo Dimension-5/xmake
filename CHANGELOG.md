@@ -2,15 +2,26 @@
 
 ## master (unreleased)
 
+## v2.9.9
+
 ### New features
 
 * [#6137](https://github.com/xmake-io/xmake/issues/6137): IDE integration
 * [#6138](https://github.com/xmake-io/xmake/issues/6138): Use libxmake to build binary with xmake lua apis
 * [#6154](https://github.com/xmake-io/xmake/issues/6154): Add kotlin language and kotlin-native compiler and packages support
+* [#6279](https://github.com/xmake-io/xmake/pull/6279): Add msvc midl support
 
 ### Changes
 
 * [#6182](https://github.com/xmake-io/xmake/pull/6182): Support msstl modules for clang
+* [#6281](https://github.com/xmake-io/xmake/pull/6281): Support Verilator target build to shared library
+* [#6270](https://github.com/xmake-io/xmake/pull/6270): Improve conan generator
+* [#6243](https://github.com/xmake-io/xmake/pull/6243): Improve llvm toolchain to support for cross platform
+* Support for CMake 4.0
+
+### Bugs fixed
+
+* [#6292](https://github.com/xmake-io/xmake/issues/6292): Fix namespace issue
 
 ## v2.9.8
 
@@ -1957,15 +1968,26 @@
 
 ## master (开发中)
 
+## v2.9.9
+
 ### 新特性
 
 * [#6137](https://github.com/xmake-io/xmake/issues/6137): IDE 整合
 * [#6138](https://github.com/xmake-io/xmake/issues/6138): 使用 libxmake/xmake APIs 去构建二进制
 * [#6154](https://github.com/xmake-io/xmake/issues/6154): 添加 kotlin native 构建支持和包依赖集成支持
+* [#6279](https://github.com/xmake-io/xmake/pull/6279): 添加 msvc midl 支持
 
 ### 改进
 
 * [#6182](https://github.com/xmake-io/xmake/pull/6182): 改进 clang/clang-cl 支持 msstl 模块
+* [#6281](https://github.com/xmake-io/xmake/pull/6281): 支持 Verilator 动态库
+* [#6270](https://github.com/xmake-io/xmake/pull/6270): 改进 conan 生成器
+* [#6243](https://github.com/xmake-io/xmake/pull/6243): 改进 llvm 工具链对交叉编译的支持
+* 三方包安装支持 CMake 4.0
+
+### Bugs 修复
+
+* [#6292](https://github.com/xmake-io/xmake/issues/6292): 修复 namespace 问题
 
 ## v2.9.8
 
