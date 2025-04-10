@@ -22,10 +22,13 @@
 rule("platform.windows.idl")
     set_extensions(".idl")
 
-    on_config(function (target)
-        local autogendir = path.join(target:autogendir(), "platform/windows/idl")
-        os.mkdir(autogendir)
-        target:add("includedirs", autogendir, {public = true})
+    on_config("windows", "mingw", function (target)
+        local sourcebatch = target:sourcebatches()["platform.windows.idl"]
+        if sourcebatch then
+            local autogendir = path.join(target:autogendir(), "platform/windows/idl")
+            os.mkdir(autogendir)
+            target:add("includedirs", autogendir, {public = true})
+        end
     end)
 
     before_buildcmd_file(function (target, batchcmds, sourcefile, opt)
@@ -50,7 +53,7 @@ rule("platform.windows.idl")
 
         batchcmds:show_progress(opt.progress, "${color.build.object}compiling.idl %s", sourcefile)
         batchcmds:vrunv(midl.program, flags, {envs = msvc:runenvs()})
-        
+
         local iid_file = path.join(autogendir, name .. "_i.c")
         local objectfile = target:objectfile(iid_file)
         table.insert(target:objectfiles(), objectfile)
