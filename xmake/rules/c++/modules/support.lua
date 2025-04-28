@@ -13,7 +13,7 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki, Arthapz
--- @file        compiler_support.lua
+-- @file        support.lua
 --
 
 -- imports
@@ -25,23 +25,28 @@ import("lib.detect.find_file")
 import("core.project.project")
 import("core.project.config")
 
-function _compiler_support(target)
+function _support(target)
+    return import_implementation_of(target, "support")
+end
+
+function import_implementation_of(target, name)
+
     local cachekey = tostring(target)
-    local compiler_support = memcache():get2("compiler_support", cachekey)
-    if compiler_support == nil then
+    local implementation = memcache():get2(name, cachekey)
+    if implementation == nil then
         if target:has_tool("cxx", "clang", "clangxx", "clang_cl") then
-            compiler_support = import("clang.compiler_support", {anonymous = true})
+            implementation = import("clang." .. name, {anonymous = true})
         elseif target:has_tool("cxx", "gcc", "gxx") then
-            compiler_support = import("gcc.compiler_support", {anonymous = true})
+            implementation = import("gcc." .. name, {anonymous = true})
         elseif target:has_tool("cxx", "cl") then
-            compiler_support = import("msvc.compiler_support", {anonymous = true})
+            implementation = import("msvc." .. name, {anonymous = true})
         else
             local _, toolname = target:tool("cxx")
-            raise("compiler(%s): does not support c++ module!", toolname)
+            raise("compiler(%s): does not implementation c++ module!", toolname)
         end
-        memcache():set2("compiler_support", cachekey, compiler_support)
+        memcache():set2(name, cachekey, implementation)
     end
-    return compiler_support
+    return implementation
 end
 
 -- load module support for the current target
@@ -61,17 +66,17 @@ function load(target)
     end
 
     -- load module support for the specific compiler
-    _compiler_support(target).load(target)
+    _support(target).load(target)
 end
 
 -- strip flags not relevent for module reuse
 function strip_flags(target, flags)
-    return _compiler_support(target).strip_flags(target, flags)
+    return _support(target).strip_flags(target, flags)
 end
 
 -- get bmi extension
 function get_bmi_extension(target)
-    return _compiler_support(target).get_bmi_extension()
+    return _support(target).get_bmi_extension()
 end
 
 -- get bmi path
@@ -82,13 +87,14 @@ function get_bmi_path(bmifile)
 end
 
 -- has module extension? e.g. *.mpp, ...
-function has_module_extension(sourcefile)
+function has_module_extension(sourcefile, opt)
+    opt = opt or {}
     local modulexts = _g.modulexts
     if modulexts == nil then
         modulexts = hashset.of(".mpp", ".mxx", ".cppm", ".ixx")
         _g.modulexts = modulexts
     end
-    local extension = path.extension(sourcefile)
+    local extension = opt.extension or path.extension(sourcefile)
     return modulexts:has(extension:lower())
 end
 
@@ -133,12 +139,12 @@ end
 
 function find_quote_header_file(target, sourcefile, file)
     local p = path.join(path.directory(path.absolute(sourcefile, project.directory())), file)
-    assert(os.isfile(p))
+    assert(os.isfile(p), "\"%s\" not found", p)
     return p
 end
 
 function find_angle_header_file(target, file)
-    local headerpaths = _compiler_support(target).toolchain_includedirs(target)
+    local headerpaths = _support(target).toolchain_includedirs(target)
     for _, dep in ipairs(target:orderdeps()) do
         local includedirs = table.join(dep:get("sysincludedirs") or {}, dep:get("includedirs") or {})
         table.join2(headerpaths, includedirs)
@@ -149,13 +155,13 @@ function find_angle_header_file(target, file)
     end
     table.join2(headerpaths, target:get("includedirs"))
     local p = find_file(file, headerpaths)
-    assert(p, "find <%s> not found!", file)
+    assert(p, "<%s> not found!", file)
     return p
 end
 
 -- get stdmodules
 function get_stdmodules(target)
-  return _compiler_support(target).get_stdmodules(target)
+  return _support(target).get_stdmodules(target)
 end
 
 -- get memcache

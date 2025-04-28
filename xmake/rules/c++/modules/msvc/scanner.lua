@@ -15,7 +15,7 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki, Arthapz
--- @file        msvc/dependency_scanner.lua
+-- @file        msvc/scanner.lua
 --
 
 -- imports
@@ -24,27 +24,30 @@ import("core.base.semver")
 import("core.project.depend")
 import("private.tools.vstool")
 import("utils.progress")
-import("compiler_support")
+import("support")
 import("builder")
-import(".dependency_scanner", {inherit = true})
+import(".scanner", {inherit = true})
 
 -- generate dependency files
 function generate_dependency_for(target, sourcefile, opt)
     local msvc = target:toolchain("msvc")
-    local scandependenciesflag = compiler_support.get_scandependenciesflag(target)
-    local ifcoutputflag = compiler_support.get_ifcoutputflag(target)
+    local scandependenciesflag = support.get_scandependenciesflag(target)
+    local ifcoutputflag = support.get_ifcoutputflag(target)
     local common_flags = {"-TP", scandependenciesflag}
     local dependfile = target:dependfile(sourcefile)
     local compinst = target:compiler("cxx")
     local flags = compinst:compflags({sourcefile = sourcefile, target = target}) or {}
     local changed = false
+    local fallbackscanner = target:policy("build.c++.modules.fallbackscanner") or
+                            target:policy("build.c++.modules.msvc.fallbackscanner") or
+                            target:policy("build.c++.msvc.fallbackscanner")
 
     depend.on_changed(function ()
         progress.show(opt.progress, "${color.build.target}<%s> generating.module.deps %s", target:fullname(), sourcefile)
-        local outputdir = compiler_support.get_outputdir(target, sourcefile)
+        local outputdir = support.get_outputdir(target, sourcefile)
 
         local jsonfile = path.join(outputdir, path.filename(sourcefile) .. ".module.json")
-        if scandependenciesflag and not target:policy("build.c++.msvc.fallbackscanner") then
+        if scandependenciesflag and not fallbackscanner then
             local dependency_flags = {jsonfile, sourcefile, ifcoutputflag, outputdir, "-Fo" .. target:objectfile(sourcefile)}
             local compflags = table.join(flags, common_flags, dependency_flags)
             os.vrunv(compinst:program(), winos.cmdargv(compflags), {envs = msvc:runenvs()})

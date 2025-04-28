@@ -92,7 +92,7 @@ function _get_target_package_libfiles(target, opt)
         if pkg:enabled() and pkg:get("libfiles") then
             for _, libfile in ipairs(table.wrap(pkg:get("libfiles"))) do
                 local filename = path.filename(libfile)
-                if filename:endswith(".dll") or filename:endswith(".so") or filename:find("%.so%.%d+$") or filename:endswith(".dylib") then
+                if filename:endswith(".dll") or filename:endswith(".so") or filename:find("%.so[%.%d+]+$") or filename:endswith(".dylib") then
                     table.insert(libfiles, libfile)
                 end
             end
@@ -303,11 +303,10 @@ function _on_target_installcmd_shared(target, batchcmds_, opt)
 
     -- install *.lib for shared/windows (*.dll) target
     -- @see https://github.com/xmake-io/xmake/issues/714
-    local targetfile = target:targetfile()
-    local targetfile_lib = path.join(path.directory(targetfile), path.basename(targetfile) .. (target:is_plat("mingw") and ".dll.a" or ".lib"))
-    if os.isfile(targetfile_lib) then
+    local implibfile = target:artifactfile("implib")
+    if implibfile and os.isfile(implibfile) then
         batchcmds_:mkdir(libdir)
-        batchcmds_:cp(targetfile_lib, path.join(libdir, path.filename(targetfile_lib)))
+        batchcmds_:cp(implibfile, path.join(libdir, path.filename(implibfile)))
     end
 
     _install_target_headers(target, batchcmds_, opt)

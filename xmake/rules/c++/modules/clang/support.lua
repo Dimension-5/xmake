@@ -15,7 +15,7 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki, Arthapz
--- @file        clang/compiler_support.lua
+-- @file        clang/support.lua
 --
 
 -- imports
@@ -24,7 +24,7 @@ import("core.base.option")
 import("core.base.json")
 import("lib.detect.find_tool")
 import("lib.detect.find_file")
-import(".compiler_support", {inherit = true})
+import(".support", {inherit = true})
 
 -- get includedirs for stl headers
 --
@@ -149,7 +149,9 @@ function strip_flags(target, flags)
         "-cxx-isystem",
         "-Q",
     }
-    if not target:policy("build.c++.modules.tryreuse.discriminate_on_defines") then
+    local strict = target:policy("build.c++.modules.reuse.strict") or
+                   target:policy("build.c++.modules.tryreuse.discriminate_on_defines")
+    if not strict then
         table.join2(strippable_flags, {"-D", "-U"})
     end
     local output = {}

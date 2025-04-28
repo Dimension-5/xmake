@@ -79,7 +79,7 @@ function _get_target_package_libfiles(target, opt)
         if pkg:enabled() and pkg:get("libfiles") then
             for _, libfile in ipairs(table.wrap(pkg:get("libfiles"))) do
                 local filename = path.filename(libfile)
-                if filename:endswith(".dll") or filename:endswith(".so") or filename:find("%.so%.%d+$") or filename:endswith(".dylib") then
+                if filename:endswith(".dll") or filename:endswith(".so") or filename:find("%.so[%.%d+]+$") or filename:endswith(".dylib") then
                     table.insert(libfiles, libfile)
                 end
             end
@@ -237,10 +237,10 @@ function _install_shared(target, opt)
         -- @see https://github.com/xmake-io/xmake/issues/714
         os.vcp(target:targetfile(), bindir)
         local libdir = _get_target_libdir(target, opt)
-        local targetfile_lib = path.join(path.directory(targetfile), path.basename(targetfile) .. (target:is_plat("mingw") and ".dll.a" or ".lib"))
-        if os.isfile(targetfile_lib) then
+        local implibfile = target:artifactfile("implib")
+        if os.isfile(implibfile) then
             os.mkdir(libdir)
-            os.vcp(targetfile_lib, libdir)
+            os.vcp(implibfile, libdir)
         end
     else
         -- install target with soname and symlink

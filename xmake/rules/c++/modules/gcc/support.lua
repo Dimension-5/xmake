@@ -15,7 +15,7 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki, Arthapz
--- @file        gcc/compiler_support.lua
+-- @file        gcc/support.lua
 --
 
 -- imports
@@ -23,7 +23,7 @@ import("core.base.json")
 import("core.base.semver")
 import("core.project.config")
 import("lib.detect.find_tool")
-import(".compiler_support", {inherit = true})
+import(".support", {inherit = true})
 
 -- get includedirs for stl headers
 --
@@ -60,7 +60,9 @@ function load(target)
     -- @see https://github.com/xmake-io/xmake/issues/2716#issuecomment-1225057760
     -- https://github.com/xmake-io/xmake/issues/3855
 
-    if target:policy("build.c++.gcc.modules.cxx11abi") then
+    local cxx11abi = target:policy("build.c++.modules.gcc.cxx11abi") or
+                     target:policy("build.c++.gcc.modules.cxx11abi")
+    if cxx11abi then
         target:add("cxxflags", "-D_GLIBCXX_USE_CXX11_ABI=1")
     else
         target:add("cxxflags", "-D_GLIBCXX_USE_CXX11_ABI=0")
@@ -81,7 +83,9 @@ function strip_flags(target, flags)
         "-Q",
         "-fmodule-mapper",
     }
-    if not target:policy("build.c++.modules.tryreuse.discriminate_on_defines") then
+    local strict = target:policy("build.c++.modules.reuse.strict") or
+                   target:policy("build.c++.modules.tryreuse.discriminate_on_defines")
+    if not strict then
         table.join2(strippable_flags, {"-D", "-U"})
     end
     local output = {}
@@ -208,8 +212,11 @@ end
 function get_moduleheaderflag(target)
     local moduleheaderflag = _g.moduleheaderflag
     if moduleheaderflag == nil then
+        -- we need to suppress warnings/errors:
+        -- external linkage definition of 'int main(int, char**)' in header module must be declared 'inline'
+        local snippet = ""
         local compinst = target:compiler("cxx")
-        if compinst:has_flags("-fmodule-header", "cxxflags", {flagskey = "gcc_module_header"}) then
+        if compinst:has_flags("-fmodule-header", "cxxflags", {snippet = snippet, flagskey = "gcc_module_header"}) then
             moduleheaderflag = "-fmodule-header="
         end
         _g.moduleheaderflag = moduleheaderflag or false

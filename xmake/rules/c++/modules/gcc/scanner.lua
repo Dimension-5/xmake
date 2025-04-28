@@ -15,7 +15,7 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki, Arthapz
--- @file        gcc/dependency_scanner.lua
+-- @file        gcc/scanner.lua
 --
 
 -- imports
@@ -23,30 +23,33 @@ import("core.base.json")
 import("core.base.semver")
 import("core.project.depend")
 import("utils.progress")
-import("compiler_support")
+import("support")
 import("builder")
-import(".dependency_scanner", {inherit = true})
+import(".scanner", {inherit = true})
 
 -- generate dependency files
 function generate_dependency_for(target, sourcefile, opt)
     local compinst = target:compiler("cxx")
     local baselineflags = {"-E", "-x", "c++"}
-    local depsformatflag = compiler_support.get_depsflag(target, "p1689r5")
-    local depsfileflag = compiler_support.get_depsfileflag(target)
-    local depstargetflag = compiler_support.get_depstargetflag(target)
+    local depsformatflag = support.get_depsflag(target, "p1689r5")
+    local depsfileflag = support.get_depsfileflag(target)
+    local depstargetflag = support.get_depstargetflag(target)
     local dependfile = target:dependfile(sourcefile)
     local flags = compinst:compflags({sourcefile = sourcefile, target = target}) or {}
     local changed = false
+    local fallbackscanner = target:policy("build.c++.modules.fallbackscanner") or
+                            target:policy("build.c++.modules.gcc.fallbackscanner") or
+                            target:policy("build.c++.gcc.fallbackscanner")
 
     depend.on_changed(function()
         if opt.progress then
             progress.show(opt.progress, "${color.build.target}<%s> generating.module.deps %s", target:fullname(), sourcefile)
         end
 
-        local outputdir = compiler_support.get_outputdir(target, sourcefile)
+        local outputdir = support.get_outputdir(target, sourcefile)
         local jsonfile = path.translate(path.join(outputdir, path.filename(sourcefile) .. ".json"))
         local has_depsflags = depsformatflag and depsfileflag and depstargetflag
-        if has_depsflags and not target:policy("build.c++.gcc.fallbackscanner") then
+        if has_depsflags and not fallbackscanner then
             local ifile = path.translate(path.join(outputdir, path.filename(sourcefile) .. ".i"))
             local dfile = path.translate(path.join(outputdir, path.filename(sourcefile) .. ".d"))
             local compflags = table.join(flags or {}, baselineflags, {sourcefile, "-MT", jsonfile, "-MD", "-MF", dfile, depsformatflag, depsfileflag .. jsonfile, depstargetflag .. target:objectfile(sourcefile), "-o", ifile})

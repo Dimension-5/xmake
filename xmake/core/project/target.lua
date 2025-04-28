@@ -1418,7 +1418,7 @@ function _instance:objectdir(opt)
     -- the object directory
     local objectdir = self:get("objectdir")
     if not objectdir then
-        objectdir = path.join(config.buildir(), ".objs")
+        objectdir = path.join(config.builddir(), ".objs")
     end
     local namespace = self:namespace()
     if namespace then
@@ -1455,7 +1455,7 @@ function _instance:dependir(opt)
     -- init the dependent directory
     local dependir = self:get("dependir")
     if not dependir then
-        dependir = path.join(config.buildir(), ".deps")
+        dependir = path.join(config.builddir(), ".deps")
     end
     local namespace = self:namespace()
     if namespace then
@@ -1492,7 +1492,7 @@ function _instance:autogendir(opt)
     -- init the autogen directory
     local autogendir = self:get("autogendir")
     if not autogendir then
-        autogendir = path.join(config.buildir(), ".gens")
+        autogendir = path.join(config.builddir(), ".gens")
     end
     local namespace = self:namespace()
     if namespace then
@@ -1570,39 +1570,85 @@ function _instance:autogenfile(sourcefile, opt)
     return path.join(rootdir, (opt and opt.filename) and opt.filename or path.filename(sourcefile))
 end
 
+-- get the default target directory
+function _instance:_default_targetdir()
+    local targetdir = config.builddir()
+
+    -- get root directory of target
+    local intermediate_directory = self:policy("build.intermediate_directory")
+    if intermediate_directory == false then
+        return targetdir
+    end
+
+    -- generate intermediate directory
+    local plat = self:plat()
+    if plat then
+        targetdir = path.join(targetdir, plat)
+    end
+    local arch = self:arch()
+    if arch then
+        targetdir = path.join(targetdir, arch)
+    end
+    local mode = config.mode()
+    if mode then
+        targetdir = path.join(targetdir, mode)
+    end
+    local namespace = self:namespace()
+    if namespace then
+        targetdir = path.join(targetdir, (namespace:replace("::", path.sep())))
+    end
+    return targetdir
+end
+
 -- get the target directory
 function _instance:targetdir()
-
-    -- the target directory
     local targetdir = self:get("targetdir")
     if not targetdir then
-        targetdir = config.buildir()
+        return self:_default_targetdir()
+    end
 
-        -- get root directory of target
-        local intermediate_directory = self:policy("build.intermediate_directory")
-        if intermediate_directory == false then
-            return targetdir
-        end
+    -- we can use `set_targetdir("xxx", {bindir = "", libdir = ""})` to set sub-directory
+    local subdir_kind
+    if self:is_binary() or (self:is_shared() and self:is_plat("windows", "mingw")) then
+        subdir_kind = "bindir"
+    elseif self:is_static() or self:is_shared() then
+        subdir_kind = "libdir"
+    end
+    return self:_artifactdir(subdir_kind)
+end
 
-        -- generate intermediate directory
-        local plat = self:plat()
-        if plat then
-            targetdir = path.join(targetdir, plat)
-        end
-        local arch = self:arch()
-        if arch then
-            targetdir = path.join(targetdir, arch)
-        end
-        local mode = config.mode()
-        if mode then
-            targetdir = path.join(targetdir, mode)
-        end
-        local namespace = self:namespace()
-        if namespace then
-            targetdir = path.join(targetdir, (namespace:replace("::", path.sep())))
+-- get the build artifact output directory,
+--
+-- @param subdir_kind  the sub-directory kind, e.g. libdir, bindir, includedir
+--
+function _instance:_artifactdir(subdir_kind)
+    local targetdir = self:get("targetdir")
+    if not targetdir then
+        return self:_default_targetdir()
+    end
+
+    if subdir_kind then
+        local subdir = self:extraconf("targetdir", targetdir, subdir_kind)
+        if subdir then
+            return path.join(targetdir, subdir)
         end
     end
     return targetdir
+end
+
+-- get the extra build artifact file
+--
+-- supported artifact kinds:
+--    1. implib: windows DLL implib(.lib, .dll.a)
+--
+-- otherwise returns nil
+--
+function _instance:artifactfile(kind)
+    if kind == "implib" then
+        if self:is_shared() and self:is_plat("windows", "mingw") then
+            return path.join(self:_artifactdir("libdir"), path.basename(self:filename()) .. (self:is_plat("mingw") and ".dll.a" or ".lib"))
+        end
+    end
 end
 
 -- get the target file name
@@ -1683,7 +1729,7 @@ end
 
 -- get configuration output directory
 function _instance:configdir()
-    return self:get("configdir") or config.buildir()
+    return self:get("configdir") or config.builddir()
 end
 
 -- get run directory
@@ -1746,7 +1792,7 @@ end
 -- get package directory
 function _instance:packagedir()
     -- get the output directory
-    local outputdir   = baseoption.get("outputdir") or config.buildir()
+    local outputdir   = baseoption.get("outputdir") or config.builddir()
     local packagename = self:name():lower()
     if #packagename > 1 and bit.band(packagename:byte(2), 0xc0) == 0x80 then
         utils.warning("package(%s): cannot generate package, becauese it contains unicode characters!", packagename)
@@ -2183,9 +2229,9 @@ function _instance:dependfile(objectfile)
 
     -- get relative directory in the build directory
     if not relativedir then
-        local buildir = path.absolute(config.buildir())
-        if origindir:startswith(buildir) then
-            relativedir = path.join("build", path.relative(origindir, buildir))
+        local builddir = path.absolute(config.builddir())
+        if origindir:startswith(builddir) then
+            relativedir = path.join("build", path.relative(origindir, builddir))
         end
     end
 
@@ -3069,4 +3115,3 @@ end
 
 -- return module
 return target
-

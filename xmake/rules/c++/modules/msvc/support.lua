@@ -15,14 +15,14 @@
 -- Copyright (C) 2015-present, TBOOX Open Source Group.
 --
 -- @author      ruki, Arthapz
--- @file        msvc/compiler_support.lua
+-- @file        msvc/support.lua
 --
 
 -- imports
 import("core.base.semver")
 import("core.project.config")
 import("lib.detect.find_tool")
-import(".compiler_support", {inherit = true})
+import(".support", {inherit = true})
 
 -- load module support for the current target
 function load(target)
@@ -94,7 +94,9 @@ function strip_flags(target, flags)
         "analyze",
         "?",
     }
-    if not target:policy("build.c++.modules.tryreuse.discriminate_on_defines") then
+    local strict = target:policy("build.c++.modules.reuse.strict") or
+                   target:policy("build.c++.modules.tryreuse.discriminate_on_defines")
+    if not strict then
         table.join2(strippable_flags, {"D", "U"})
     end
     local output = {}
