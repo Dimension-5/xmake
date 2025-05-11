@@ -256,10 +256,14 @@ function _get_configs_file(package, opt)
         if ranlib then
             file:print("ranlib=['%s']", executable_path(ranlib))
         end
-        if package:is_plat("mingw") then
+        if package:is_plat("mingw", "msys", "windows") then
             local mrc = package:build_getenv("mrc")
             if mrc then
                 file:print("windres=['%s']", executable_path(mrc))
+            end
+            local dlltool = package:build_getenv("dlltool")
+            if dlltool then
+                file:print("dlltool=['%s']", executable_path(dlltool))
             end
         end
         local cmake = find_tool("cmake")
@@ -326,6 +330,7 @@ function _get_configs(package, configs, opt)
 
     -- add prefix
     configs = configs or {}
+    opt._configs_str = string.serialize(configs, {indent = false, strip = true})
     table.insert(configs, "--prefix=" .. (opt.prefix or package:installdir()))
     table.insert(configs, "--libdir=lib")
 
@@ -345,6 +350,14 @@ function _get_configs(package, configs, opt)
     -- add asan
     if package:config("asan") then
         table.insert(configs, "-Db_sanitize=address")
+    end
+
+    -- add library kind
+    if package:is_library() then
+        local has_already_libflag = opt._configs_str and opt._configs_str:find("default_library", 1, true)
+        if not has_already_libflag then
+            table.insert(configs, "-Ddefault_library=".. (package:config("shared") and "shared" or "static"))
+        end
     end
 
     -- add vs runtimes flags
@@ -465,6 +478,12 @@ end
 -- get the build environments
 function buildenvs(package, opt)
     local envs = {}
+    if not is_host("windows") and package:is_plat("windows") then
+        local msvc = package:toolchain("msvc") or package:toolchain("clang") or package:toolchain("clang-cl")
+        assert(msvc:check(), "msvc envs not found!") -- we need to check vs envs if it has been not checked yet
+        envs = os.joinenvs(msvc:runenvs())
+    end
+
     opt = opt or {}
     if package:is_plat(os.host()) then
         local cflags   = table.join(table.wrap(package:config("cxflags")), package:config("cflags"))

@@ -19,7 +19,6 @@
 --
 
 toolchain("rust")
-
     set_homepage("https://www.rust-lang.org/")
     set_description("Rust Programming Language Compiler")
 
@@ -29,23 +28,16 @@ toolchain("rust")
     set_toolset("rcar", "$(env RC)", "rustc")
 
     on_load(function (toolchain)
+        import("core.tools.rustc.target_triple")
 
-        -- e.g. x86_64-pc-windows-msvc, aarch64-unknown-none
-        local arch = toolchain:arch()
-        if toolchain:is_plat("android") then
-            local targets = {
-                ["armv5te"]     = "arm-linux-androideabi" -- deprecated
-            ,   ["armv7-a"]     = "arm-linux-androideabi" -- deprecated
-            ,   ["armeabi"]     = "arm-linux-androideabi" -- removed in ndk r17
-            ,   ["armeabi-v7a"] = "arm-linux-androideabi"
-            ,   ["arm64-v8a"]   = "aarch64-linux-android"
-            }
-            if targets[arch] then
-                arch = targets[arch]
-            end
+        local opt = {}
+        if toolchain:config("appledev") == "simulator" then
+            opt.apple_sim = true
         end
-        if arch and #arch:split("%-") > 1 then
-            toolchain:add("rcflags", "--target=" .. arch)
+ 
+        local target = target_triple(toolchain:plat(), toolchain:arch(), opt)
+        if target then
+            toolchain:add("rcflags", "--target=" .. target)
         else
             toolchain:set("rcshflags", "")
             toolchain:set("rcldflags", "")
