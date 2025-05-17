@@ -23,6 +23,7 @@ import("core.base.json")
 import("core.base.hashset")
 import("core.base.graph")
 import("core.base.option")
+import("core.base.profiler")
 import("async.runjobs")
 import("support")
 import("mapper")
@@ -32,8 +33,9 @@ function _scanner(target)
     return support.import_implementation_of(target, "scanner")
 end
 
-function _parse_meta_info(metafile)
+function _parse_meta_info(target, metafile)
 
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "parse metainfo", metafile)
     local metadata = json.loadfile(metafile)
     if metadata.file and metadata.name then
         return metadata.file, metadata.name, metadata
@@ -59,6 +61,7 @@ function _parse_meta_info(metafile)
             break
         end
     end
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "parse metainfo", metafile)
     return filename, name, metadata
 end
 
@@ -102,6 +105,7 @@ end
 }]]
 function _parse_dependencies_data(target, moduleinfos)
 
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "parse modulescans")
     -- insert headerunit as moduleinfos
     local headerunitinfos = {}
     for _, moduleinfo in ipairs(moduleinfos) do
@@ -188,12 +192,14 @@ function _parse_dependencies_data(target, moduleinfos)
             end
         end
     end
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "parse modulescans")
     return modules, modules_names
 end
 
 -- generate edges for DAG
 function _get_edges(target, nodes, modules)
 
+  profiler.enter(target:fullname(), "c++ modules", "scanner", "get module dependency graph edges")
   local edges = {}
   local name_filemap = {}
   local deps_names = hashset.new()
@@ -219,18 +225,20 @@ function _get_edges(target, nodes, modules)
           end
       end
   end
+  profiler.leave(target:fullname(), "c++ modules", "scanner", "get module dependency graph edges")
   return edges
 end
 
 -- get package modules
 function _get_package_modules(target, package, opt)
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "get modules from package", package:name())
     opt = opt or {}
     local package_modules
     local modulesdir = path.join(package:installdir(), "modules")
     local metafiles = os.files(path.join(modulesdir, "*", "*.meta-info"))
     for _, metafile in ipairs(metafiles) do
         package_modules = package_modules or {}
-        local modulefile, _, metadata = _parse_meta_info(metafile)
+        local modulefile, _, metadata = _parse_meta_info(target, metafile)
 
         local bmionly = package:libraryfiles() and true or false
         package_modules[path.join(modulesdir, modulefile)] = {defines = metadata.defines,
@@ -238,6 +246,7 @@ function _get_package_modules(target, package, opt)
                                                               bmionly = bmionly,
                                                               external = opt.external and target:fullname()}
     end
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "get modules from package", package:name())
     return package_modules
 end
 
@@ -257,6 +266,7 @@ end
 
 -- get packages modules
 function _get_packages_modules(target)
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "get modules from package dependencies")
     -- parse all meta-info and append their informations to the package store
     local packages_modules = support.memcache():get2(target:fullname(), "cxx_packages_modules")
     if not packages_modules then
@@ -271,12 +281,14 @@ function _get_packages_modules(target)
         end
         support.memcache():set2(target:fullname(), "cxx_packages_modules", packages_modules)
     end
+    profiler.leave(target:fullname(), "c++ modules", "get modules from package dependencies")
     return packages_modules
 end
 
 -- get target deps modules
 function _get_targetdeps_modules(target)
 
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "get modules from target dependencies")
     local _, stdmodules_set = support.get_stdmodules(target)
     local modules
     for _, dep in ipairs(target:orderdeps()) do
@@ -296,7 +308,11 @@ function _get_targetdeps_modules(target)
                     fileconfig.undefines = table.join(fileconfig.undefines or {}, dep:get("undefines") or {})
                     fileconfig.includedirs = table.join(fileconfig.includedirs or {}, dep:get("includedirs") or {})
                     if not dep:is_phony() then
-                        fileconfig.external = dep:fullname()
+                        if target:namespace() == dep:namespace() then
+                            fileconfig.external = dep:name()
+                        else
+                            fileconfig.external = dep:fullname()
+                        end
                         fileconfig.bmionly = not dep:is_moduleonly()
                     end
                     if not modules[sourcefile] then
@@ -306,6 +322,7 @@ function _get_targetdeps_modules(target)
             end
         end
     end
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "get modules from target dependencies")
     return modules
 end
 
@@ -358,6 +375,7 @@ function _patch_sourcebatch(target, sourcebatch)
             local strict = target:policy("build.c++.modules.reuse.strict") or
                            target:policy("build.c++.modules.tryreuse.discriminate_on_defines")
             local dep = target:dep(fileconfig.external)
+            assert(dep, "dep target <%s> for <%s>", fileconfig.external, target:fullname())
 
             local can_reuse = nocheck or _are_flags_compatible(target, dep, sourcefile, {strict = strict})
             if can_reuse then
@@ -385,6 +403,7 @@ end
 
 function _do_parse(target, sourcebatch)
 
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "parse module dependencies and compute dependency graph")
     local changed = support.memcache():get2(target:fullname(), "modules.changed")
     local modules
     if changed then
@@ -431,18 +450,22 @@ function _do_parse(target, sourcebatch)
 
     -- sort modules
     sort_modules_by_dependencies(target, modules, {jobgraph = target:policy("build.jobgraph")})
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "parse module dependencies and compute dependency graph")
 end
 
 function _do_scan(target, sourcefile, opt)
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "scan dependencies for", sourcefile)
     local changed = _scanner(target).scan_dependency_for(target, sourcefile, opt)
     if changed or not support.localcache():get2(target:fullname(), "module_mapper") then
         support.memcache():set2(target:fullname(), "modules.changed", true)
     end
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "scan dependencies for", sourcefile)
 end
 
 -- scan module dependencies
 function _schedule_module_dependencies_scan(target, jobgraph, sourcebatch)
 
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "schedule module dependencies scans")
     function get_basegroup_for(target)
         return target:fullname() .. "/modules"
     end
@@ -508,10 +531,12 @@ function _schedule_module_dependencies_scan(target, jobgraph, sourcebatch)
             end
         end
     end
+    profiler.leave(target:fullname(), "c++ modules", "schedule module dependencies scans")
 end
 
 -- get headerunits info
 function sort_headerunits(target, headerunits)
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "sort headerunits")
     local _headerunits
     local stl_headerunits
     for _, headerunit in ipairs(headerunits) do
@@ -524,6 +549,7 @@ function sort_headerunits(target, headerunits)
             table.insert(_headerunits, headerunit)
         end
     end
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "sort headerunits")
     return _headerunits, stl_headerunits
 end
 
@@ -558,6 +584,7 @@ end
 }]]
 function fallback_generate_dependencies(target, jsonfile, sourcefile, preprocess_file)
 
+    profiler.enter(target:fullname(), "c++ modules", "fallback scanner", "scan module dependencies for", sourcefile)
     local output = {version = 1, revision = 0, rules = {}}
     local rule = {outputs = {jsonfile}}
     rule["primary-output"] = target:objectfile(sourcefile)
@@ -632,13 +659,18 @@ function fallback_generate_dependencies(target, jsonfile, sourcefile, preprocess
     table.insert(output.rules, rule)
     local jsondata = json.encode(output)
     io.writefile(jsonfile, jsondata)
+    profiler.leave(target:fullname(), "c++ modules", "fallback scanner", "scan module dependencies for", sourcefile)
 end
 
 -- topological sort
 function sort_modules_by_dependencies(target, modules)
 
-    local changed = support.memcache():get2(target:fullname(), "modules.changed")
-    if changed then
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "compute module dependency dag")
+    local memcache = support.memcache()
+    local localcache = support.localcache()
+    local changed = memcache:get2(target:fullname(), "modules.changed")
+    local built_artifacts = localcache:get2(target:fullname(), "c++.modules.built_artifacts")
+    if changed or not built_artifacts then
         local built_modules = {}
         local built_headerunits = {}
         local objectfiles = {}
@@ -751,11 +783,13 @@ function sort_modules_by_dependencies(target, modules)
         table.sort(objectfiles)
         built_headerunits = table.unique(built_headerunits)
 
-        support.localcache():set2(target:fullname(), "c++.modules.built_artifacts", {modules = built_modules, headerunits = built_headerunits, objectfiles = objectfiles})
-        support.localcache():save()
-        support.memcache():set2(target:fullname(), "modules.changed", false)
+        built_artifacts = {modules = built_modules, headerunits = built_headerunits, objectfiles = objectfiles}
+        localcache:set2(target:fullname(), "c++.modules.built_artifacts", built_artifacts)
+        localcache:save()
+        memcache:set2(target:fullname(), "modules.changed", false)
     end
-    local built_artifacts = support.localcache():get2(target:fullname(), "c++.modules.built_artifacts")
+    assert(built_artifacts, "shouldn't assert here, please open an issue")
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "compute module dependency dag")
     return built_artifacts.modules, built_artifacts.headerunits, built_artifacts.objectfiles
 end
 
@@ -784,9 +818,11 @@ function after_scan(target)
 end
 
 function main(target, jobgraph, sourcebatch)
+    profiler.enter(target:fullname(), "c++ modules", "scanner", "scan")
     local compile_commands = os.getenv("XMAKE_IN_PROJECT_GENERATOR") and os.getenv("XMAKE_IN_COMPILE_COMMANDS_PROJECT_GENERATOR")
     if target:data("cxx.has_modules") and (not os.getenv("XMAKE_IN_PROJECT_GENERATOR") or compile_commands) then
         _patch_sourcebatch(target, sourcebatch)
         _schedule_module_dependencies_scan(target, jobgraph, sourcebatch)
     end
+    profiler.leave(target:fullname(), "c++ modules", "scanner", "scan")
 end
