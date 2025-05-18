@@ -156,7 +156,6 @@ function main(target, sourcebatch)
     sourcebatch.sourcefiles = sourcefiles
     sourcebatch.objectfiles = objectfiles
     sourcebatch.dependfiles = dependfiles
-    sourcebatch.kind_unique = true
 
     -- save unit batch
     target:data_set("unity_build.uniqueid", uniqueid)
