@@ -1,0 +1,1 @@
+xcopy "build\xmake.exe" "D:\xmake\xmake.exe" /s/h/e/k/f/c/y
