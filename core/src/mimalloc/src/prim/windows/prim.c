@@ -18,8 +18,7 @@ terms of the MIT license. A copy of the license can be found in the file
 //---------------------------------------------
 
 #if defined(_MSC_VER)
-#pragma warning(disable:28159)  // don't use GetVersion
-#pragma warning(disable:4996)   // don't use GetVersion
+#pragma warning(disable:4996)   // don't use GetVersionExW
 #endif
 
 static DWORD win_major_version = 6;
@@ -72,6 +71,8 @@ static PGetNumaProcessorNode        pGetNumaProcessorNode = NULL;
 
 // Available after Windows XP
 typedef BOOL (__stdcall *PGetPhysicallyInstalledSystemMemory)( PULONGLONG TotalMemoryInKilobytes );
+typedef BOOL (__stdcall* PGetVersionExW)(LPOSVERSIONINFOW lpVersionInformation);
+
 
 //---------------------------------------------
 // Enable large page support dynamically (if possible)
@@ -126,14 +127,9 @@ void _mi_prim_mem_init( mi_os_mem_config_t* config )
   config->has_overcommit = false;
   config->has_partial_free = false;
   config->has_virtual_reserve = true;
-  // windows version
-  OSVERSIONINFOW version; _mi_memzero_var(version);
-  if (GetVersionExW(&version)) {
-    win_major_version = version.dwMajorVersion;
-    win_minor_version = version.dwMinorVersion;
-  }
+  
   // get the page size
-  SYSTEM_INFO si;
+  SYSTEM_INFO si; _mi_memzero_var(si);
   GetSystemInfo(&si);
   if (si.dwPageSize > 0) { config->page_size = si.dwPageSize; }
   if (si.dwAllocationGranularity > 0) {
@@ -147,8 +143,7 @@ void _mi_prim_mem_init( mi_os_mem_config_t* config )
   }
 
   // get the VirtualAlloc2 function
-  HINSTANCE  hDll;
-  hDll = LoadLibrary(TEXT("kernelbase.dll"));
+  HINSTANCE hDll = LoadLibrary(TEXT("kernelbase.dll"));
   if (hDll != NULL) {
     // use VirtualAlloc2FromApp if possible as it is available to Windows store apps
     pVirtualAlloc2 = (PVirtualAlloc2)(void (*)(void))GetProcAddress(hDll, "VirtualAlloc2FromApp");
@@ -176,6 +171,16 @@ void _mi_prim_mem_init( mi_os_mem_config_t* config )
         if (memInKiB > 0 && memInKiB <= SIZE_MAX) {
           config->physical_memory_in_kib = (size_t)memInKiB;
         }
+      }
+    }
+    // Get Windows version
+    PGetVersionExW pGetVersionExW = (PGetVersionExW)(void (*)(void))GetProcAddress(hDll, "GetVersionExW");
+    if (pGetVersionExW != NULL) {
+      OSVERSIONINFOW version; _mi_memzero_var(version);
+      version.dwOSVersionInfoSize = sizeof(version);
+      if ((*pGetVersionExW)(&version)) {
+        win_major_version = version.dwMajorVersion;
+        win_minor_version = version.dwMinorVersion;
       }
     }
     FreeLibrary(hDll);
@@ -369,6 +374,11 @@ int _mi_prim_reset(void* addr, size_t size) {
   }
   #endif
   return (p != NULL ? 0 : (int)GetLastError());
+}
+
+int _mi_prim_reuse(void* addr, size_t size) {
+  MI_UNUSED(addr); MI_UNUSED(size);
+  return 0;
 }
 
 int _mi_prim_protect(void* addr, size_t size, bool protect) {
@@ -646,14 +656,42 @@ bool _mi_prim_random_buf(void* buf, size_t buf_len) {
 // Process & Thread Init/Done
 //----------------------------------------------------------------
 
+#if MI_WIN_USE_FIXED_TLS==1
+mi_decl_cache_align size_t _mi_win_tls_offset = 0;  
+#endif
+
+//static void mi_debug_out(const char* s) {
+//  HANDLE h = GetStdHandle(STD_ERROR_HANDLE);
+//  WriteConsole(h, s, (DWORD)_mi_strlen(s), NULL, NULL);
+//}
+
+static void mi_win_tls_init(DWORD reason) {
+  if (reason==DLL_PROCESS_ATTACH || reason==DLL_THREAD_ATTACH) {
+    #if MI_WIN_USE_FIXED_TLS==1  // we must allocate a TLS slot dynamically
+    if (_mi_win_tls_offset == 0 && reason == DLL_PROCESS_ATTACH) {
+      const DWORD tls_slot = TlsAlloc();  // usually returns slot 1
+      if (tls_slot == TLS_OUT_OF_INDEXES) {
+        _mi_error_message(EFAULT, "unable to allocate the a TLS slot (rebuild without MI_WIN_USE_FIXED_TLS?)\n");
+      }
+      _mi_win_tls_offset = (size_t)tls_slot * sizeof(void*);
+    }
+    #endif
+    #if MI_HAS_TLS_SLOT >= 2  // we must initialize the TLS slot before any allocation
+    if (mi_prim_get_default_heap() == NULL) {
+      _mi_heap_set_default_direct((mi_heap_t*)&_mi_heap_empty);  
+      #if MI_DEBUG && MI_WIN_USE_FIXED_TLS==1
+      void* const p = TlsGetValue((DWORD)(_mi_win_tls_offset / sizeof(void*)));
+      mi_assert_internal(p == (void*)&_mi_heap_empty);
+      #endif  
+    }
+    #endif  
+  }  
+}
+
 static void NTAPI mi_win_main(PVOID module, DWORD reason, LPVOID reserved) {
   MI_UNUSED(reserved);
   MI_UNUSED(module);
-  #if MI_TLS_SLOT >= 2
-  if ((reason==DLL_PROCESS_ATTACH || reason==DLL_THREAD_ATTACH) && mi_prim_get_default_heap() == NULL) {
-    _mi_heap_set_default_direct((mi_heap_t*)&_mi_heap_empty);
-  }
-  #endif
+  mi_win_tls_init(reason);
   if (reason==DLL_PROCESS_ATTACH) {
     _mi_process_load();
   }
@@ -670,7 +708,7 @@ static void NTAPI mi_win_main(PVOID module, DWORD reason, LPVOID reserved) {
   #define MI_PRIM_HAS_PROCESS_ATTACH  1
 
   // Windows DLL: easy to hook into process_init and thread_done
-  BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved) {
+  BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved) {    
     mi_win_main((PVOID)inst,reason,reserved);
     return TRUE;
   }
@@ -815,11 +853,7 @@ static void NTAPI mi_win_main(PVOID module, DWORD reason, LPVOID reserved) {
   #endif
   mi_decl_export void _mi_redirect_entry(DWORD reason) {
     // called on redirection; careful as this may be called before DllMain
-    #if MI_TLS_SLOT >= 2
-    if ((reason==DLL_PROCESS_ATTACH || reason==DLL_THREAD_ATTACH) && mi_prim_get_default_heap() == NULL) {
-      _mi_heap_set_default_direct((mi_heap_t*)&_mi_heap_empty);
-    }
-    #endif
+    mi_win_tls_init(reason);
     if (reason == DLL_PROCESS_ATTACH) {
       mi_redirected = true;
     }

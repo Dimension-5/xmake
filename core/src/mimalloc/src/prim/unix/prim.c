@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------------
-Copyright (c) 2018-2023, Microsoft Research, Daan Leijen
+Copyright (c) 2018-2025, Microsoft Research, Daan Leijen
 This is free software; you can redistribute it and/or modify it under the
 terms of the MIT license. A copy of the license can be found in the file
 "LICENSE" at the root of this distribution.
@@ -32,6 +32,9 @@ terms of the MIT license. A copy of the license can be found in the file
 #if defined(__linux__)
   #include <features.h>
   #include <sys/prctl.h>    // THP disable, PR_SET_VMA
+  #if defined(__GLIBC__) && !defined(PR_SET_VMA)
+  #include <linux/prctl.h>
+  #endif
   #if defined(__GLIBC__)
   #include <linux/mman.h>   // linux mmap flags
   #else
@@ -69,7 +72,6 @@ terms of the MIT license. A copy of the license can be found in the file
 
 #define MI_UNIX_LARGE_PAGE_SIZE (2*MI_MiB) // TODO: can we query the OS for this?
 
-  
 //------------------------------------------------------------------------------------
 // Use syscalls for some primitives to allow for libraries that override open/read/close etc.
 // and do allocation themselves; using syscalls prevents recursion when mimalloc is
@@ -185,6 +187,7 @@ void _mi_prim_mem_init( mi_os_mem_config_t* config )
 //---------------------------------------------
 
 int _mi_prim_free(void* addr, size_t size ) {
+  if (size==0) return 0;
   bool err = (munmap(addr, size) == -1);
   return (err ? errno : 0);
 }
@@ -220,8 +223,8 @@ static void* unix_mmap_prim_aligned(void* addr, size_t size, size_t try_alignmen
   void* p = NULL;
   #if defined(MAP_ALIGNED)  // BSD
   if (addr == NULL && try_alignment > 1 && (try_alignment % _mi_os_page_size()) == 0) {
-    size_t idx;
-    size_t n = mi_bsr(try_alignment, &idx);
+    size_t n = 0;
+    mi_bsr(try_alignment, &n);
     if (((size_t)1 << n) == try_alignment && n >= 12 && n <= 30) {  // alignment is a power of 2 and 4096 <= alignment <= 1GiB
       p = unix_mmap_prim(addr, size, protect_flags, flags | MAP_ALIGNED(n), fd);
       if (p==MAP_FAILED || !_mi_is_aligned(p,try_alignment)) {
@@ -431,10 +434,24 @@ int _mi_prim_commit(void* start, size_t size, bool* is_zero) {
   return err;
 }
 
+int _mi_prim_reuse(void* start, size_t size) {
+  MI_UNUSED(start); MI_UNUSED(size);
+  #if defined(__APPLE__) && defined(MADV_FREE_REUSE)
+  return unix_madvise(start, size, MADV_FREE_REUSE);
+  #endif
+  return 0;
+}
+
 int _mi_prim_decommit(void* start, size_t size, bool* needs_recommit) {
   int err = 0;
-  // decommit: use MADV_DONTNEED as it decreases rss immediately (unlike MADV_FREE)
-  err = unix_madvise(start, size, MADV_DONTNEED);
+  #if defined(__APPLE__) && defined(MADV_FREE_REUSABLE)
+    // decommit on macOS: use MADV_FREE_REUSABLE as it does immediate rss accounting (issue #1097)
+    err = unix_madvise(start, size, MADV_FREE_REUSABLE);
+    if (err) { err = unix_madvise(start, size, MADV_DONTNEED); }
+  #else
+    // decommit: use MADV_DONTNEED as it decreases rss immediately (unlike MADV_FREE)
+    err = unix_madvise(start, size, MADV_DONTNEED);
+  #endif  
   #if !MI_DEBUG && MI_SECURE<=2
     *needs_recommit = false;
   #else
@@ -452,14 +469,22 @@ int _mi_prim_decommit(void* start, size_t size, bool* needs_recommit) {
 }
 
 int _mi_prim_reset(void* start, size_t size) {
-  // We try to use `MADV_FREE` as that is the fastest. A drawback though is that it
+  int err = 0;
+
+  // on macOS can use MADV_FREE_REUSABLE (but we disable this for now as it seems slower)
+  #if 0 && defined(__APPLE__) && defined(MADV_FREE_REUSABLE) 
+  err = unix_madvise(start, size, MADV_FREE_REUSABLE);  
+  if (err==0) return 0;
+  // fall through
+  #endif
+
+  #if defined(MADV_FREE)
+  // Otherwise, we try to use `MADV_FREE` as that is the fastest. A drawback though is that it
   // will not reduce the `rss` stats in tools like `top` even though the memory is available
   // to other processes. With the default `MIMALLOC_PURGE_DECOMMITS=1` we ensure that by
   // default `MADV_DONTNEED` is used though.
-  #if defined(MADV_FREE)
   static _Atomic(size_t) advice = MI_ATOMIC_VAR_INIT(MADV_FREE);
   int oadvice = (int)mi_atomic_load_relaxed(&advice);
-  int err;
   while ((err = unix_madvise(start, size, oadvice)) != 0 && errno == EAGAIN) { errno = 0;  };
   if (err != 0 && errno == EINVAL && oadvice == MADV_FREE) {
     // if MADV_FREE is not supported, fall back to MADV_DONTNEED from now on
@@ -467,7 +492,7 @@ int _mi_prim_reset(void* start, size_t size) {
     err = unix_madvise(start, size, MADV_DONTNEED);
   }
   #else
-  int err = unix_madvise(start, size, MADV_DONTNEED);
+  err = unix_madvise(start, size, MADV_DONTNEED);
   #endif
   return err;
 }
