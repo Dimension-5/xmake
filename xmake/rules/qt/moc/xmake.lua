@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
--- Copyright (C) 2015-present, TBOOX Open Source Group.
+-- Copyright (C) 2015-present, Xmake Open Source Community.
 --
 -- @author      ruki
 -- @file        xmake.lua
@@ -22,7 +22,7 @@ rule("qt.moc")
     add_deps("qt.env")
     add_orders("qt.ui", "qt.moc")
     set_extensions(".h", ".hpp")
-    before_buildcmd_file(function (target, batchcmds, sourcefile, opt)
+    on_preparecmd_file(function (target, batchcmds, sourcefile, opt)
         import("core.tool.compiler")
         import("lib.detect.find_file")
 

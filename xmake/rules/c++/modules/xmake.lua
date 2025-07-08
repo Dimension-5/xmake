@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
--- Copyright (C) 2015-present, TBOOX Open Source Group.
+-- Copyright (C) 2015-present, Xmake Open Source Community.
 --
 -- @author      ruki, Arthapz
 -- @file        xmake.lua
@@ -36,7 +36,7 @@ rule("c++.build.modules")
 rule("c++.build.modules.scanner")
     set_sourcekinds("cxx", {objectfiles = false})
     set_extensions(".cppm", ".ccm", ".cxxm", ".c++m", ".mpp", ".mxx", ".ixx")
-    
+
     on_prepare_files("scanner", {jobgraph = true})
     after_prepare_files("scanner.after_scan")
 
@@ -59,6 +59,6 @@ rule("c++.build.modules.builder")
 -- install modules
 rule("c++.build.modules.install")
     set_extensions(".cppm", ".ccm", ".cxxm", ".c++m", ".mpp", ".mxx", ".ixx")
-    
+
     before_install("install.install")
     before_uninstall("install.uninstall")

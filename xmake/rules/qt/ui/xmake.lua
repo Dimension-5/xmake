@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
--- Copyright (C) 2015-present, TBOOX Open Source Group.
+-- Copyright (C) 2015-present, Xmake Open Source Community.
 --
 -- @author      ruki
 -- @file        xmake.lua
@@ -49,7 +49,7 @@ rule("qt.ui")
         target:data_set("qt.uic", uic)
     end)
 
-    before_buildcmd_file(function (target, batchcmds, sourcefile_ui, opt)
+    on_preparecmd_file(function (target, batchcmds, sourcefile_ui, opt)
         local uic = target:data("qt.uic")
         local headerfile_dir = path.join(target:autogendir(), "rules", "qt", "ui")
         local headerfile_ui = path.join(headerfile_dir, "ui_" .. path.basename(sourcefile_ui) .. ".h")

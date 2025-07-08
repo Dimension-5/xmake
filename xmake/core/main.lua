@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
--- Copyright (C) 2015-present, TBOOX Open Source Group.
+-- Copyright (C) 2015-present, Xmake Open Source Community.
 --
 -- @author      ruki
 -- @file        main.lua
@@ -46,7 +46,7 @@ local debugger      = require("base/debugger")
 local menu =
 {
     title = "${bright}xmake v" .. _VERSION .. ", A cross-platform build utility based on " .. (xmake._LUAJIT and "LuaJIT" or "Lua") .. "${clear}"
-,   copyright = "Copyright (C) 2015-present Ruki Wang, ${underline}tboox.org${clear}, ${underline}xmake.io${clear}"
+,   copyright = "Copyright (C) 2015-present Ruki Wang, ${underline}https://xmake.io${clear}"
 
     -- the tasks: xmake [task]
 ,   function ()

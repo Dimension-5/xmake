@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
--- Copyright (C) 2015-present, TBOOX Open Source Group.
+-- Copyright (C) 2015-present, Xmake Open Source Community.
 --
 -- @author      ruki
 -- @file        sign.lua
@@ -94,7 +94,7 @@ function main(target, filepath, mode)
     if mode == "test" and (not certfile and not thumbprint and not store) then
         table.insert(argv, "/a")
         table.insert(argv, "/n")
-        table.insert(argv, "tboox.org(test)")
+        table.insert(argv, "xmake.io(test)")
         table.insert(argv, "/s")
         table.insert(argv, "PrivateCertStore")
     end

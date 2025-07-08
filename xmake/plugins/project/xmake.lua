@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
--- Copyright (C) 2015-present, TBOOX Open Source Group.
+-- Copyright (C) 2015-present, Xmake Open Source Community.
 --
 -- @author      ruki
 -- @file        xmake.lua
@@ -43,7 +43,7 @@ task("project")
                                                         ,   "    - xmakefile (makefile with xmake)"
                                                         ,   "    - cmake"
                                                         ,   "    - ninja"
-                                                        ,   "    - xcode (need cmake)"
+                                                        ,   "    - xcode"
                                                         ,   "    - compile_flags"
                                                         ,   "    - compile_commands (clang compilation database with json format)"
                                                         ,   "    - vs (auto detect), vs2002 - vs2022"

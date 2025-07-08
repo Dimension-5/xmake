@@ -2,10 +2,15 @@
 
 ## master (unreleased)
 
+### New features
+
+* [#4810](https://github.com/xmake-io/xmake/issues/4810): Add Native XCode project generator plugin
+
 ### Bugs fixed
 
 * [#6592](https://github.com/xmake-io/xmake/pull/6592): Fix objects only links
 * [#6586](https://github.com/xmake-io/xmake/issues/6586): Fix build.fence policy
+* [#6600](https://github.com/xmake-io/xmake/issues/6600): Fix compile_commands generator for c++modules
 
 ## v3.0.0
 
@@ -1993,10 +1998,15 @@
 
 ## master (开发中)
 
+### 新特性
+
+* [#4810](https://github.com/xmake-io/xmake/issues/4810): 添加新的原生 Xcode 工程生成插件
+
 ### Bugs 修复
 
 * [#6592](https://github.com/xmake-io/xmake/pull/6592): 修复 object 目标的链接问题
 * [#6586](https://github.com/xmake-io/xmake/issues/6586): 修复 build.fence 策略
+* [#6600](https://github.com/xmake-io/xmake/issues/6600): 修复 compile_commands 生成器
 
 ## v3.0.0
 

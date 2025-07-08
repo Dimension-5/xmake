@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
--- Copyright (C) 2015-present, TBOOX Open Source Group.
+-- Copyright (C) 2015-present, Xmake Open Source Community.
 --
 -- @author      ruki
 -- @file        main.lua
@@ -25,7 +25,6 @@ import("core.project.config")
 import("make.makefile")
 import("make.xmakefile")
 import("cmake.cmakelists")
-import("xcode.xcodeproj")
 import("ninja.build_ninja")
 import("vstudio.vs")
 import("vsxmake.vsxmake")
@@ -33,6 +32,7 @@ import("clang.compile_flags")
 import("clang.compile_commands")
 import("private.utils.statistics")
 import("private.service.remote_build.action", {alias = "remote_build_action"})
+import("xcode.xcodeproj")
 
 function makers()
     return {
