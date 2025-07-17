@@ -35,7 +35,7 @@
     <a href="https://discord.gg/xmake">
       <img src="https://img.shields.io/badge/chat-on%20discord-7289da.svg?style=flat-square" alt="Discord" />
     </a>
-    <a href="https://xmake.io/#/zh-cn/about/sponsor">
+    <a href="https://xmake.io/about/sponsor">
       <img src="https://img.shields.io/badge/donate-us-orange.svg?style=flat-square" alt="Donate" />
     </a>
   </div>
@@ -46,7 +46,7 @@
 
 ## 项目支持
 
-通过[成为赞助者](https://xmake.io/#/about/sponsor)来支持该项目。您的logo将显示在此处，并带有指向您网站的链接。🙏
+通过[成为赞助者](https://xmake.io/about/sponsor)来支持该项目。您的logo将显示在此处，并带有指向您网站的链接。🙏
 
 <a href="https://opencollective.com/xmake#sponsors" target="_blank"><img src="https://opencollective.com/xmake/sponsors.svg?width=890"></a>
 <a href="https://opencollective.com/xmake#backers" target="_blank"><img src="https://opencollective.com/xmake/backers.svg?width=600"></a>
@@ -82,15 +82,15 @@ Xmake ≈ Make/Ninja + CMake/Meson + Vcpkg/Conan + distcc + ccache/sccache
 ```
 
 
-如果你想要了解更多，请参考：[在线文档](https://xmake.io/#/zh-cn/getting_started), [Github](https://github.com/xmake-io/xmake)以及[Gitee](https://gitee.com/tboox/xmake) 和 [GitCode](https://gitcode.com/xmake-io/xmake)，同时也欢迎加入我们的 [社区](https://xmake.io/#/zh-ch/about/contact).
+如果你想要了解更多，请参考：[在线文档](https://xmake.io/guide/quick-start), [Github](https://github.com/xmake-io/xmake)以及[Gitee](https://gitee.com/tboox/xmake) 和 [GitCode](https://gitcode.com/xmake-io/xmake)，同时也欢迎加入我们的 [社区](https://xmake.io/about/contact)。
 
-![](https://github.com/xmake-io/xmake-docs/raw/master/assets/img/index/xmake-basic-render.gif)
+![](https://github.com/xmake-io/xmake-docs/raw/master/docs/public/assets/img/index/xmake-basic-render.gif)
 
 ## 课程
 
 xmake 官方也推出了一些入门课程，带你一步步快速上手 xmake，课程列表如下：
 
-* [Xmake 带你轻松构建 C/C++ 项目](https://xmake.io/#/zh-cn/about/course)
+* [Xmake 带你轻松构建 C/C++ 项目](https://xmake.io/zh/about/course)
 
 ## 安装
 
@@ -114,7 +114,7 @@ irm https://xmake.io/psget.text | iex
 
 #### 其他安装方式
 
-如果不想使用脚本安装，也可以点击查看 [安装文档](https://xmake.io/#/zh-cn/guide/installation)，了解其他安装方法。
+如果不想使用脚本安装，也可以点击查看 [安装文档](https://xmake.io/guide/installation)，了解其他安装方法。
 
 ## 简单的工程描述
 
@@ -215,7 +215,7 @@ $ xmake f --menu
 
 * 官方自建仓库 [xmake-repo](https://github.com/xmake-io/xmake-repo) (tbox >1.6.1)
 * 官方包管理器 [Xrepo](https://github.com/xmake-io/xrepo)
-* [用户自建仓库](https://xmake.io/#/zh-cn/package/remote_package?id=%e4%bd%bf%e7%94%a8%e8%87%aa%e5%bb%ba%e7%a7%81%e6%9c%89%e5%8c%85%e4%bb%93%e5%ba%93)
+* [用户自建仓库](https://xmake.io/package/remote_package?id=using-self-built-private-package-repository)
 * Conan (conan::openssl/1.1.1g)
 * Conda (conda::libpng 1.3.67)
 * Vcpkg (vcpkg::ffmpeg)
@@ -388,12 +388,12 @@ kotlin-native Kotlin Native Programming Language Compiler
 
 关于分布式编译和缓存，可以见下面的文档。
 
-- [分布式编译](https://xmake.io/#/zh-cn/features/distcc_build)
-- [编译缓存](https://xmake.io/#/zh-cn/features/build_cache)
+- [分布式编译](https://xmake.io/zh/guide/extras/distributed-compilation.html)
+- [编译缓存](https://xmake.io/zh/guide/extras/build-cache.html)
 
 ## 远程编译
 
-更多详情见：[远程编译](https://xmake.io/#/zh-cn/features/remote_build)
+更多详情见：[远程编译](https://xmake.io/zh/guide/extras/remote-compilation.html)
 
 ## 更多例子
 
@@ -470,7 +470,7 @@ target("app")
     add_files("exe/*.cpp")
 ```
 
-更多WDK驱动程序例子(umdf/kmdf/wdm)，见：[WDK工程例子](https://xmake.io/#/zh-cn/guide/project_examples?id=wdk%e9%a9%b1%e5%8a%a8%e7%a8%8b%e5%ba%8f)
+更多WDK驱动程序例子(umdf/kmdf/wdm)，见：[WDK工程例子](https://xmake.io/zh/examples/cpp/wdk.html)
 
 #### iOS/MacOS 应用程序
 
@@ -579,7 +579,7 @@ $ xmake l
   }
 ```
 
-更多内置插件见相关文档：[内置插件文档](https://xmake.io/#/zh-cn/plugin/builtin_plugins)
+更多内置插件见相关文档：[内置插件文档](https://xmake.io/zh/guide/extensions/builtin-plugins.html)
 
 其他扩展插件，请到插件仓库进行下载安装: [xmake-plugins](https://github.com/xmake-io/xmake-plugins).
 
@@ -658,7 +658,7 @@ with:
 
 ## 谁在使用 Xmake?
 
-请点击 [用户列表](https://xmake.io/#/zh-cn/about/who_is_using_xmake) 查看完整用户使用列表。
+请点击 [用户列表](https://xmake.io/zh/about/who_is_using_xmake.html) 查看完整用户使用列表。
 
 如果您在使用 xmake，也欢迎通过 PR 将信息提交至上面的列表，让更多的用户了解有多少用户在使用 xmake，也能让用户更加安心使用 xmake。
 
@@ -667,7 +667,7 @@ with:
 ## 联系方式
 
 * 邮箱：[waruqi@gmail.com](mailto:waruqi@gmail.com)
-* 主页：[xmake.io](https://xmake.io/#/zh-cn/)
+* 主页：[xmake.io](https://xmake.io)
 * 社区
   - [Reddit论坛](https://www.reddit.com/r/xmake/)
   - [Telegram群组](https://t.me/tbooxorg)
