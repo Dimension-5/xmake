@@ -458,12 +458,15 @@ function _get_configs_for_windows(package, configs, opt)
         end
     end
 
-    -- use clang-cl or clang
+    -- use clang-cl or clang, and we need pass --target=xxx flags
     if package:has_tool("cc", "clang", "clang_cl") then
         envs.CMAKE_C_COMPILER = _translate_bin_path(package:build_getenv("cc"))
+        -- @see https://github.com/xmake-io/xmake-repo/issues/7662
+        envs.CMAKE_C_FLAGS    = _get_cflags(package, {cross = true})
     end
     if package:has_tool("cxx", "clang", "clang_cl") then
         envs.CMAKE_CXX_COMPILER = _translate_bin_path(package:build_getenv("cxx"))
+        envs.CMAKE_CXX_FLAGS    = _get_cxxflags(package, {cross = true})
     end
 
     -- we maybe need patch `cmake_policy(SET CMP0091 NEW)` to enable this argument for some packages
@@ -1072,7 +1075,7 @@ end
 -- do build for make
 function _build_for_make(package, configs, opt)
     local argv = {}
-    local targets = table.wrap(opt.target)
+    local targets = table.wrap(opt.targets or opt.target)
     if #targets ~= 0 then
         table.join2(argv, targets)
     end
@@ -1107,7 +1110,7 @@ function _build_for_ninja(package, configs, opt)
     _fix_pdbdir_for_ninja(package)
     ninja.build(package, {}, {envs = opt.envs or buildenvs(package, opt),
         jobs = opt.jobs,
-        target = opt.target})
+        targets = opt.targets or opt.target})
 end
 
 -- do build for cmake/build
@@ -1118,7 +1121,7 @@ function _build_for_cmakebuild(package, configs, opt)
         table.insert(argv, "--config")
         table.insert(argv, opt.config)
     end
-    local targets = table.wrap(opt.target)
+    local targets = table.wrap(opt.targets or opt.target)
     if #targets ~= 0 then
         table.insert(argv, "--target")
         if #targets > 1 then
@@ -1196,7 +1199,7 @@ function _install_for_ninja(package, configs, opt)
     _fix_pdbdir_for_ninja(package)
     ninja.install(package, {}, {envs = opt.envs or buildenvs(package, opt),
         jobs = opt.jobs,
-        target = opt.target})
+        targets = opt.targets or opt.target})
 end
 
 -- do install for cmake/build
