@@ -2195,8 +2195,8 @@ function _instance:installfiles(outputdir, opt)
 end
 
 -- get the extra files
-function _instance:extrafiles()
-    return (match_copyfiles(self, "extrafiles"))
+function _instance:extrafiles(outputdir)
+    return match_copyfiles(self, "extrafiles", outputdir)
 end
 
 -- get depend file from object file

@@ -365,31 +365,27 @@ end
 function _patch_sourcebatch(target, sourcebatch)
 
     local memcache = support.memcache()
-    -- target deps modules
-    local depsmodules = _get_targetdeps_modules(target) or {}
+    local cached_sourcebatch = memcache:get2(target:fullname(), "cached_sourcebatch")
+    if not cached_sourcebatch then
+        -- target deps modules
+        local depsmodules = _get_targetdeps_modules(target) or {}
 
-    -- package modules
-    local pkgmodules = _get_packages_modules(target) or {}
+        -- package modules
+        local pkgmodules = _get_packages_modules(target) or {}
 
-    local from_depmodules = table.join(depsmodules, pkgmodules)
-    local keys = #sourcebatch.sourcefiles > 0 and table.concat(sourcebatch.sourcefiles) or " "
-    keys = keys .. (#from_depmodules > 0 and table.concat(table.orderkeys(from_depmodules)) or " ")
-    local md5sum = hash.md5(bytes(keys))
-    local localcache = support.localcache()
+        local from_depmodules = table.join(depsmodules, pkgmodules)
+        local localcache = support.localcache()
 
-    local cached_patched_sourcebatch = localcache:get2(target:fullname(), "patched_sourcebatch")
-    if not cached_patched_sourcebatch or md5sum ~= cached_patched_sourcebatch.md5sum then
         local reuse = target:policy("build.c++.modules.reuse") or
-                      target:policy("build.c++.modules.tryreuse")
+                     target:policy("build.c++.modules.tryreuse")
         local reused = {}
         for sourcefile, fileconfig in pairs(from_depmodules) do
             if reuse and fileconfig.from_dep then
                 local nocheck = target:policy("build.c++.modules.reuse.nocheck")
                 local strict = target:policy("build.c++.modules.reuse.strict") or
-                               target:policy("build.c++.modules.tryreuse.discriminate_on_defines")
+                             target:policy("build.c++.modules.tryreuse.discriminate_on_defines")
                 local dep = target:dep(fileconfig.from_dep)
                 assert(dep, "dep target <%s> for <%s> not found", fileconfig.from_dep, target:fullname())
-
                 local can_reuse = nocheck or _are_flags_compatible(target, dep, sourcefile, {strict = strict})
                 if can_reuse then
                     local _reused, from = support.is_reused(dep, sourcefile)
@@ -417,40 +413,19 @@ function _patch_sourcebatch(target, sourcebatch)
             local dependfile = _target:dependfile(sourcefile or objectfile)
             table.insert(sourcebatch.dependfiles, dependfile)
         end
-        localcache:set2(target:fullname(), "patched_sourcebatch", {sourcefiles = sourcebatch.sourcefiles, dependfiles = sourcebatch.dependfiles, reused = reused, md5sum = md5sum})
-        memcache:set2(target:fullname(), "modules.changed", true)
+
+        table.sort(sourcebatch.sourcefiles)
+        memcache:set2(target:fullname(), "cached_sourcebatch", sourcebatch)
+
+        local keys = #sourcebatch.sourcefiles > 0 and table.concat(sourcebatch.sourcefiles) or "_"
+        local sum = hash.strhash32(keys)
+        local cached_sum = localcache:get2(target:fullname(), "sourcebatch_sum")
+        if not cached_sum or cached_sum ~= sum then
+            localcache:set2(target:fullname(), "sourcebatch_sum", sum)
+            memcache:set2(target:fullname(), "modules.changed", true)
+        end
     else
-        local reused = hashset.from(cached_patched_sourcebatch.reused)
-        for sourcefile, fileconfig in pairs(from_depmodules) do
-            if reused:has(sourcefile) then
-                local dep = target:dep(fileconfig.from_dep)
-                assert(dep, "dep target <%s> for <%s> not found", fileconfig.from_dep, target:fullname())
-                local _reused, from = support.is_reused(dep, sourcefile)
-                if _reused then
-                    support.set_reused(target, from, sourcefile)
-                else
-                    support.set_reused(target, dep, sourcefile)
-                end
-                if dep:is_moduleonly() then
-                    dep:data_set("cxx.modules.reused", true)
-                end
-            end
-            target:fileconfig_add(sourcefile, fileconfig)
-        end
-        sourcebatch.sourcekind = "cxx"
-        sourcebatch.objectfiles = {}
-        sourcebatch.dependfiles = {}
-        for _, sourcefile in ipairs(sourcebatch.sourcefiles) do
-            local reused, from = support.is_reused(target, sourcefile)
-            local _target = reused and from or target
-            local objectfile = _target:objectfile(sourcefile)
-            local dependfile = _target:dependfile(objectfile)
-            table.insert(sourcebatch.dependfiles, dependfile)
-            sourcebatch.sourcekind = "cxx"
-            sourcebatch.dependfiles= cached_patched_sourcebatch.dependfiles
-            sourcebatch.sourcefiles = cached_patched_sourcebatch.sourcefiles
-            sourcebatch.objectfiles= cached_patched_sourcebatch.objectfiles
-        end
+        sourcebatch = cached_sourcebatch
     end
 end
 
@@ -532,7 +507,6 @@ function _do_computedag(target, modules, sourcebatch)
         localcache:save()
     end
     profiler.leave(target:fullname(), "c++ modules", "scanner", "compute dag")
-    -- jobgraph:dump()
 end
 
 function _do_scan(target, sourcefile, opt)
@@ -904,7 +878,7 @@ end
 
 function get_modules(target)
     local modules = support.localcache():get2(target:fullname(), "c++.modules")
-    assert(modules, "no modules!")
+    assert(modules, "no modules! (" .. target:fullname() .. ")")
     return modules
 end
 
@@ -939,6 +913,12 @@ function main(target, jobgraph, sourcebatch)
     profiler.enter(target:fullname(), "c++ modules", "scanner", "scan")
     local compile_commands = os.getenv("XMAKE_IN_PROJECT_GENERATOR") and os.getenv("XMAKE_IN_COMPILE_COMMANDS_PROJECT_GENERATOR")
     if target:data("cxx.has_modules") and (not os.getenv("XMAKE_IN_PROJECT_GENERATOR") or compile_commands) then
+        local memcache = support.memcache()
+        local targets = memcache:get("targets") or {}
+        targets[target:fullname()] = {}
+        targets[target:fullname()].finished_parsing = false
+        memcache:set("targets", targets)
+
         _patch_sourcebatch(target, sourcebatch)
         _schedule_module_dependencies_scan(target, jobgraph, sourcebatch)
     end
