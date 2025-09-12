@@ -22,11 +22,13 @@
 import("core.base.option")
 import("core.base.global")
 import("core.base.hashset")
+import("core.tool.toolchain")
 import("core.project.config")
 import("core.project.project")
 import("core.platform.platform")
 import("private.detect.find_platform")
 import("core.cache.localcache")
+import("core.cache.detectcache")
 import("scangen")
 import("menuconf", {alias = "menuconf_show"})
 import("configfiles", {alias = "generate_configfiles"})
@@ -443,6 +445,12 @@ force to build in current directory via run `xmake -P .`]], os.projectdir())
     config.save()
     localcache.set("config", "options", options)
     localcache.save("config")
+
+    -- save toolchain cache
+    toolchain.save()
+
+    -- save detect cache
+    detectcache:save()
 
     -- unlock the whole project
     project.unlock()
