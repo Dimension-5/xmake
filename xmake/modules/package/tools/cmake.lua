@@ -625,8 +625,11 @@ function _get_configs_for_cross(package, configs, opt)
     envs.CMAKE_CXX_COMPILER        = _translate_bin_path(package:build_getenv("cxx"))
     envs.CMAKE_ASM_COMPILER        = _translate_bin_path(package:build_getenv("as"))
     envs.CMAKE_AR                  = _translate_bin_path(package:build_getenv("ar"))
-    if package:is_plat("windows") and package:has_tool("cxx", "cl") then
-        envs.CMAKE_AR = path.join(path.directory(envs.CMAKE_CXX_COMPILER), "lib.exe")
+    if package:is_plat("windows") then
+        envs.CMAKE_RC_COMPILER = _translate_bin_path(package:build_getenv("mrc"))
+        if package:has_tool("cxx", "cl") then
+            envs.CMAKE_AR = path.join(path.directory(envs.CMAKE_CXX_COMPILER), "lib.exe")
+        end
     end
     _fix_cxx_compiler_cmake(package, envs)
     -- @note The link command line is set in Modules/CMake{C,CXX,Fortran}Information.cmake and defaults to using the compiler, not CMAKE_LINKER,
@@ -848,31 +851,7 @@ end
 
 function _get_envs_for_default_flags(package, configs, opt)
     local buildtype = _get_cmake_buildtype(package)
-    local envs = {}
-    local default_flags = _get_default_flags(package, configs, buildtype, opt)
-    if default_flags then
-        if not opt.cxxflags and not opt.cxflags then
-            envs.CMAKE_CXX_FLAGS = default_flags.CMAKE_CXX_FLAGS
-            envs["CMAKE_CXX_FLAGS_" .. buildtype] = default_flags["CMAKE_CXX_FLAGS_" .. buildtype]
-        end
-        if not opt.cflags and not opt.cxflags then
-            envs.CMAKE_C_FLAGS = default_flags.CMAKE_C_FLAGS
-            envs["CMAKE_C_FLAGS_" .. buildtype] = default_flags["CMAKE_C_FLAGS_" .. buildtype]
-        end
-        if not opt.ldflags then
-            envs.CMAKE_EXE_LINKER_FLAGS = default_flags.CMAKE_EXE_LINKER_FLAGS
-            envs["CMAKE_EXE_LINKER_FLAGS_" .. buildtype] = default_flags["CMAKE_EXE_LINKER_FLAGS_" .. buildtype]
-        end
-        if not opt.arflags then
-            envs.CMAKE_STATIC_LINKER_FLAGS = default_flags.CMAKE_STATIC_LINKER_FLAGS
-            envs["CMAKE_STATIC_LINKER_FLAGS_" .. buildtype] = default_flags["CMAKE_STATIC_LINKER_FLAGS_" .. buildtype]
-        end
-        if not opt.shflags then
-            envs.CMAKE_SHARED_LINKER_FLAGS = default_flags.CMAKE_SHARED_LINKER_FLAGS
-            envs["CMAKE_SHARED_LINKER_FLAGS_" .. buildtype] = default_flags["CMAKE_SHARED_LINKER_FLAGS_" .. buildtype]
-        end
-    end
-    return envs
+    return table.clone(_get_default_flags(package, configs, buildtype, opt)) or {}
 end
 
 function _get_envs_for_runtime_flags(package, opt)
@@ -892,7 +871,7 @@ end
 
 function _get_envs_for_flags(package, configs, opt)
     -- get the default envs
-    local envs = _get_envs_for_default_flags(package, configs, opt) or {}
+    local envs = _get_envs_for_default_flags(package, configs, opt)
     local runtime_envs = _get_envs_for_runtime_flags(package, opt)
     if runtime_envs then
         for name, value in pairs(runtime_envs) do
