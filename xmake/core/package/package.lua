@@ -830,9 +830,9 @@ function _instance:builddir()
         if self:is_local() then
             local name = self:name():lower():gsub("::", "_")
             local rootdir = path.join(config.builddir({absolute = true}), ".packages", name:sub(1, 1):lower(), name, self:version_str())
-            builddir = path.join(rootdir, "cache", "build_" .. self:buildhash():sub(1, 8))
+            builddir = path.join(rootdir, "cache", "build_" .. hash.rand32())
         else
-            builddir = "build_" .. self:buildhash():sub(1, 8)
+            builddir = "build_" .. hash.rand32()
         end
         self._BUILDDIR = builddir
     end
@@ -929,9 +929,13 @@ end
 function _instance:rulesdir()
     local rulesdir = self._RULESDIR
     if rulesdir == nil then
-        rulesdir = path.join(self:scriptdir(), "rules")
-        if not os.isdir(rulesdir) and self:base() then
+        if self:repo() == nil and self:base() then
             rulesdir = self:base():rulesdir()
+        else
+            rulesdir = path.join(self:scriptdir(), "rules")
+            if not os.isdir(rulesdir) and self:base() then
+                rulesdir = self:base():rulesdir()
+            end
         end
         if rulesdir == nil or not os.isdir(rulesdir) then
             rulesdir = false
@@ -990,7 +994,9 @@ function _instance:manifest_save()
     manifest.mode        = self:mode()
     manifest.configs     = self:configs()
     manifest.envs        = self:_rawenvs()
-    manifest.pathenvs    = self:_pathenvs():to_array()
+
+    -- ensure pathenvs are written deterministically
+    manifest.pathenvs = table.to_array(self:_pathenvs():orderitems())
 
     -- save enabled library deps
     if self:librarydeps() then
@@ -1454,7 +1460,7 @@ function _instance:_versions_list()
                 if not path.is_absolute(versionfile) then
                     local subpath = versionfile
                     versionfile = path.join(self:scriptdir(), subpath)
-                    if not os.isfile(versionfile) then
+                    if not os.isfile(versionfile) and self:base() then
                         versionfile = path.join(self:base():scriptdir(), subpath)
                     end
                 end
@@ -1687,6 +1693,12 @@ function _instance:_compute_buildhash()
     self:buildhash()
 end
 
+-- hash.strhash128 has been switched to xxhash.
+-- For compatibility, the old hash algorithm is still used here.
+function _instance:_strhash128(str)
+    return hash.uuid4(str):replace("-", "", {plain = true}):lower()
+end
+
 -- get the build hash
 function _instance:buildhash()
     local buildhash = self._BUILDHASH
@@ -1748,7 +1760,7 @@ function _instance:buildhash()
                 table.sort(toolchains)
                 str = str .. "_" .. table.concat(toolchains, "_")
             end
-            return hash.strhash128(str)
+            return self:_strhash128(str)
         end
         local function _get_installdir(...)
             local name = self:name():lower():gsub("::", "_")
@@ -3063,7 +3075,7 @@ function package.load_from_project(packagename, project)
     end
 
     -- new an instance
-    instance = _instance.new(packagename, packageinfo)
+    instance = _instance.new(packagename, packageinfo, {scriptdir = os.projectdir()})
     package._memcache():set2("packages", instance)
     return instance
 end

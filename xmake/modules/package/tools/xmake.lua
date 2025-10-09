@@ -284,7 +284,7 @@ function _get_configs(package, configs, opt)
         table.insert(configs, "--ccachedir=" .. path.join(path.directory(package:cachedir()), "build_cache"))
         table.insert(policies_list, "build.ccache")
     end
-    if policies then
+    if #policies_list > 0 then
         table.insert(configs, "--policies=" .. table.concat(policies_list, ","))
     end
 
@@ -485,7 +485,7 @@ function install(package, configs, opt)
 
     -- copy the ported xmake.lua in the default position if it's missing
     local xmakefile = path.join(opt.curdir or os.curdir(), "xmake.lua")
-    if not os.isfile(xmakefile) then
+    if not os.isfile(xmakefile) and package:repo() ~= nil then
         local xmakefile_port = path.join(package:scriptdir(), "port", "xmake.lua")
         if os.isfile(xmakefile_port) then
             os.cp(xmakefile_port, xmakefile)

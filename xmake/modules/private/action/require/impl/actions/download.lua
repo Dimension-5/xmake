@@ -27,6 +27,7 @@ import("core.project.config")
 import("core.package.package", {alias = "core_package"})
 import("lib.detect.find_file")
 import("lib.detect.find_directory")
+import("private.action.require.impl.check_api")
 import("private.action.require.impl.utils.filter")
 import("private.action.require.impl.utils.url_filename")
 import("net.http")
@@ -107,8 +108,9 @@ function _checkout(package, url, sourcedir, opt)
             branch = nil
         end
 
-        -- only shallow clone this branch
-        git.clone(url, {depth = 1, recursive = true, shallow_submodules = true, longpaths = longpaths, branch = branch, outputdir = packagedir})
+        -- only shallow clone this branch 
+        local clone_submodules = opt.url_submodules ~= false
+        git.clone(url, {depth = 1, recursive = clone_submodules, shallow_submodules = clone_submodules, longpaths = longpaths, branch = branch, outputdir = packagedir})
 
     -- download package from revision or tag?
     else
@@ -129,7 +131,8 @@ function _checkout(package, url, sourcedir, opt)
         -- only shallow clone this tag
         -- @see https://github.com/xmake-io/xmake/issues/4151
         if tag and git.clone.can_clone_tag() then
-            git.clone(url, {depth = 1, recursive = true, shallow_submodules = true, longpaths = longpaths, branch = tag, outputdir = packagedir})
+            local clone_submodules = opt.url_submodules ~= false
+            git.clone(url, {depth = 1, recursive = clone_submodules, shallow_submodules = clone_submodules, longpaths = longpaths, branch = tag, outputdir = packagedir})
         else
 
             -- clone whole history and tags
@@ -405,6 +408,8 @@ function main(package, opt)
             catch
             {
                 function (errors)
+
+                    check_api(package, {download_failure = true})
 
                     -- show or save the last errors
                     if errors then

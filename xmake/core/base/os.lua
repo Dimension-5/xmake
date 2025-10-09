@@ -762,7 +762,8 @@ function os.tmpfile(opt_or_key)
         key = opt_or_key.key
         opt = opt_or_key
     end
-    return path.join(os.tmpdir(opt), "_" .. (hash.uuid4(key):gsub("-", "")))
+    local filename = "_" .. (key and hash.strhash128(key) or (hash.rand128()))
+    return path.join(os.tmpdir(opt), filename)
 end
 
 -- exit program
@@ -1300,23 +1301,29 @@ function os.term()
     return require("base/tty").term()
 end
 
--- get all current environment variables
--- e.g. envs["PATH"] = "/xxx:/yyy/foo"
+-- get all current environments variables
 function os.getenvs()
-    local envs = {}
-    for _, line in ipairs(os._getenvs()) do
-        local p = line:find('=', 1, true)
-        if p then
-            local key = line:sub(1, p - 1):trim()
-            -- only translate Path to PATH on windows
-            -- @see https://github.com/xmake-io/xmake/issues/3752
-            if os.host() == "windows" and key:lower() == "path" then
-                key = key:upper()
+    local envs = os._getenvs()
+    if envs then
+        -- we need to be compatible with the old binary core, if it's array (<= v3.0.3)
+        if envs[1] ~= nil then
+            local result = {}
+            for _, line in ipairs(envs) do
+                local p = line:find('=', 1, true)
+                if p then
+                    local key = line:sub(1, p - 1):trim()
+                    -- only translate Path to PATH on windows
+                    -- @see https://github.com/xmake-io/xmake/issues/3752
+                    if os.host() == "windows" and key:lower() == "path" then
+                        key = key:upper()
+                    end
+                    local values = line:sub(p + 1):trim()
+                    if #key > 0 then
+                        result[key] = values
+                    end
+                end
             end
-            local values = line:sub(p + 1):trim()
-            if #key > 0 then
-                envs[key] = values
-            end
+            envs = result
         end
     end
     return envs
